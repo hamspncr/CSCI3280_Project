@@ -20,4 +20,4 @@ npm run preview
 
 ## Speech2text capabilities
 
-Create a [wit.ai](https://wit.ai/) API key and paste it in .env if you wanna try out the speech2text module, there's no UI for it as of yet and the actual function is quite barebones (doesn't handle errors)
+Clone .env, name the clone .env.local, then create a [wit.ai](https://wit.ai/) API key and paste it in .env.local if you wanna try out the speech2text module, there's no UI for it as of yet and the actual function is quite barebones (doesn't handle errors)
