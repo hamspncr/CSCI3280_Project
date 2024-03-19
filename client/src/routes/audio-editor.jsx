@@ -245,13 +245,13 @@ const AudioEditor = () => {
       context.current = new AudioContext();
       gain.current = context.current.createGain();
       gain.current.gain.value = volume;
+      gain.current.connect(context.current.destination);
+      
       const source = context.current.createMediaStreamSource(
         testStream.current
       );
 
       source.connect(gain.current);
-      gain.current.gain.value = volume;
-      gain.current.connect(context.current.destination);
 
       setTesting(true);
     } else {
