@@ -17,7 +17,7 @@ const VoiceChat = () => {
         }
 
         // If a message is received, append it to the chat room
-        ws.current.onmessage = ({ data }) => {
+        ws.current.onmessage = ({data}) => {
             console.log(data)
             const li = document.createElement("li")
             li.textContent = data
@@ -47,9 +47,13 @@ const VoiceChat = () => {
 
     return (
         <>
+            <h1>Send sound data: </h1>
+            <button>Click me to mute/unmute</button>
+            <hr/>
+            <h1>Send messages:</h1>
             <form onSubmit={handleSubmit}>
                 <input type="text" value={text} placeholder="Enter text" onChange={e => setText(e.target.value)}/>
-                <button type="submit">Submit</button>
+                <button type="submit">Send!</button>
             </form>
             <ul className="sent-messages"></ul>
         </>
