@@ -7,6 +7,7 @@ import {
 import './index.css';
 import AudioEditor from './routes/audio-editor';
 import Root from "./routes/root";
+import VoiceChat from './routes/voice-chat';
 
 const router = createBrowserRouter([
   {
@@ -19,7 +20,7 @@ const router = createBrowserRouter([
   },
   {
     path: "voice-chat",
-    element: <Root />, // Temporary
+    element: <VoiceChat />, // Temporary
   },
 ]);
 
