@@ -24,7 +24,11 @@ wss.on('connection', ws => {
 
     ws.on('message', message => {
         const {event, payload} = JSON.parse(message)
-        if (event === 'create-room') {
+        if (event === 'get-rooms') {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(rooms))
+            }
+        } else if (event === 'create-room') {
             const {name} = payload
             const id = crypto.randomUUID();
             rooms[id] = {
@@ -33,21 +37,22 @@ wss.on('connection', ws => {
                 messages: []
             }
 
-            broadcastRoomInfo(rooms)
-
             console.log(`Room created with id ${id}, named ${name}`)
         } else if (event === 'join-room') {
-            const {id} = payload
+            const {id, username} = payload
             const room = rooms[id]
+
+            const user_info = {
+                connection: ws,
+                username: username
+            }
             
             if (room) {
-                room.users.push(ws);
+                room.users.push(user_info);
                 console.log(`User joined ${room.name}`)
             } else {
                 console.log(`Room not found`)
             }
-
-            broadcastRoomInfo(rooms)
 
         } else if (event === 'send-message') {
             const {username, id, text} = payload
@@ -63,11 +68,21 @@ wss.on('connection', ws => {
                 console.log(`Room not found`)
             }
 
-            broadcastRoomInfo(rooms)
+            rooms.users.forEach(user => {
+                if (user.readyState === WebSocket.OPEN) {
+                    user.send(JSON.stringify(msg));
+                }
+            })
         }
     })
 
     ws.on('close', () => {
         console.log("User disconnected")
+        Object.values(rooms).forEach(room => {
+            const index = room.users.findIndex(user => user.connection === ws);
+            if (index !== -1) {
+                room.users.splice(index, 1);
+            }
+        })
     })
 })
