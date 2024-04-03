@@ -48,8 +48,14 @@ wss.on('connection', ws => {
             }
             
             if (room) {
-                room.users.push(user_info);
                 console.log(`User joined ${room.name}`)
+                room.users.push(user_info);
+
+                room.users.forEach(user => {
+                    if (user.connection.readyState === WebSocket.OPEN) {
+                        user.connection.send(JSON.stringify(room));
+                    }
+                })
             } else {
                 console.log(`Room not found`)
             }
@@ -64,15 +70,14 @@ wss.on('connection', ws => {
                     content: text
                 }
                 room.messages.push(msg)
+                room.users.forEach(user => {
+                    if (user.connection.readyState === WebSocket.OPEN) {
+                        user.connection.send(JSON.stringify(msg));
+                    }
+                })
             } else {
                 console.log(`Room not found`)
             }
-
-            rooms.users.forEach(user => {
-                if (user.readyState === WebSocket.OPEN) {
-                    user.send(JSON.stringify(msg));
-                }
-            })
         }
     })
 
