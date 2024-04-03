@@ -1,24 +1,36 @@
-const WebSocket = require ('ws')
+const WebSocket = require("ws");
 
-const wss = new WebSocket.Server({ port: 8000 })
+const wss = new WebSocket.Server({ port: 8000 });
 
+wss.on("connection", (ws) => {
+  console.log("a user has connected :))");
 
-wss.on('connection', ws => {
-
-    console.log("a user has connected :))")
-
-    // Listen for messages being sent to server from clients
-    ws.on('message', message => {
-        console.log(`Broadcasting ${message} to all users`) 
-        wss.clients.forEach(client => {
+  ws.on("message", (message) => {
+    // Receiving binary data (like your voice)
+    if (message instanceof Buffer) {
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(message);
+        }
+      });
+    } else {
+      try {
+        const data = JSON.parse(message);
+        const { event } = data;
+        if (event === "text-chat") {
+          wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
-                client.send(message.toString())
+              client.send(JSON.stringify(data));
             }
-        })
-    })
+          });
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  });
 
-    // Listen for close
-    ws.on('close', () => {
-        console.log("byebye user :(")
-    })
-})
+  ws.on("close", () => {
+    console.log("byebye user :(");
+  });
+});
