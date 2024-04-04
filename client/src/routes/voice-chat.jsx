@@ -1,8 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { UsernameContext } from "../main";
 
 const VoiceChat = () => {
+  const { username, setUsername } = useContext(UsernameContext);
   const [loading, setLoading] = useState(true);
-  const [username, setUsername] = useState("");
+  //const [username, setUsername] = useState("");
   const [rooms, setRooms] = useState(null);
   const [createRoomInfo, setCreateRoomInfo] = useState({ name: "" });
   // Code for WebSocket connection (note 'ws' only works in the server, need to use native WebSocket object for frontend)
@@ -32,7 +35,7 @@ const VoiceChat = () => {
       if (event === "get-rooms") {
         setRooms(payload);
       } else if (event === "create-room") {
-        handleRefresh()
+        handleRefresh();
       }
     };
 
@@ -46,12 +49,12 @@ const VoiceChat = () => {
     const create_room = {
       event: "create-room",
       payload: {
-        name: createRoomInfo.name
-      }
-    }
-    setCreateRoomInfo({name: ""})
+        name: createRoomInfo.name,
+      },
+    };
+    setCreateRoomInfo({ name: "" });
 
-    ws.current.send(JSON.stringify(create_room))
+    ws.current.send(JSON.stringify(create_room));
   };
 
   const handleRefresh = () => {
@@ -60,7 +63,7 @@ const VoiceChat = () => {
       payload: {},
     };
     ws.current.send(JSON.stringify(request_rooms));
-  }
+  };
 
   return (
     <>
@@ -97,7 +100,7 @@ const VoiceChat = () => {
           <ul>
             {rooms &&
               Object.entries(rooms).map(([id, room]) => (
-                <li key={id}>{room.name}</li>
+                <li key={id}><Link disabled to={`/voice-chat/${id}`}>{room.name}</Link></li>
               ))}
           </ul>
         </div>

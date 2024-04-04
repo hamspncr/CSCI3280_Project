@@ -33,6 +33,15 @@ wss.on('connection', ws => {
             if (ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify(response))
             }
+        } else if (event === 'get-room') {
+            const {id} = payload
+            const response = {
+                event: 'get-room',
+                payload: rooms[id]
+            }
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(response))
+            }
         } else if (event === 'create-room') {
             const {name} = payload
             const id = crypto.randomUUID();
@@ -63,12 +72,17 @@ wss.on('connection', ws => {
             }
             
             if (room) {
-                console.log(`User joined ${room.name}`)
+                console.log(`${username} joined ${room.name}`)
                 room.users.push(user_info);
+
+                const response = {
+                    event: "join-room",
+                    payload: room
+                }
 
                 room.users.forEach(user => {
                     if (user.connection.readyState === WebSocket.OPEN) {
-                        user.connection.send(JSON.stringify(room));
+                        user.connection.send(JSON.stringify(response));
                     }
                 })
             } else {
@@ -80,14 +94,14 @@ wss.on('connection', ws => {
             const room = rooms[id]
 
             if (room) {
-                const msg = {
+                const response = {
                     name: username,
                     content: text
                 }
-                room.messages.push(msg)
+                room.messages.push(response)
                 room.users.forEach(user => {
                     if (user.connection.readyState === WebSocket.OPEN) {
-                        user.connection.send(JSON.stringify(msg));
+                        user.connection.send(JSON.stringify(response));
                     }
                 })
             } else {
