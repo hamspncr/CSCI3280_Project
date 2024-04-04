@@ -48,7 +48,7 @@ ws.on('message', message => {
             username: username
         }
         
-        console.log(`User ${username} joined room ${id}`)
+        console.log(`User ${username} attempt to join room ${id}`)
         if (room) {
             console.log(`User joined ${room.name}`)
             room.users.push(user_info);

@@ -42,7 +42,7 @@ const VoiceChat = () => {
   const handleJoinRoom = (roomId) => {
     const username = prompt("Enter your username:");
     if (username) {
-      ws.current.send(JSON.stringify({ event: 'join-room', payload: { id: roomId, username } }));
+      ws.current.send(JSON.stringify({ event: 'join-room', payload: { id: roomId, username: username } }));
     }
   };
 
@@ -71,7 +71,7 @@ const VoiceChat = () => {
           </tr>
         </thead>
         <tbody>
-          {Object.values(rooms).map((room) => (
+          {Object.entries(rooms).map(([id, room]) => (
             <tr key={room.id} className="bg-gray-600">
               <td className="border px-4 py-2">{room.name}</td>
               <td className="border px-4 py-2">
