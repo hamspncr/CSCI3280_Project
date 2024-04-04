@@ -72,11 +72,11 @@ const VoiceChat = () => {
         </thead>
         <tbody>
           {Object.entries(rooms).map(([id, room]) => (
-            <tr key={room.id} className="bg-gray-600">
+            <tr key={id} className="bg-gray-600">
               <td className="border px-4 py-2">{room.name}</td>
               <td className="border px-4 py-2">
                 <button
-                  onClick={() => handleJoinRoom(room.id)}
+                  onClick={() => handleJoinRoom(id)}
                   className="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded"
                 >
                   Join

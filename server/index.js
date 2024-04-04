@@ -31,6 +31,7 @@ ws.on('message', message => {
     } else if (event === 'create-room') {
         const {name} = payload
         const id = crypto.randomUUID();
+        console.log(`Creating room ${name} with id ${id}`)
         rooms[id] = {
             name: name,
             users: [],
@@ -48,7 +49,7 @@ ws.on('message', message => {
             username: username
         }
         
-        console.log(`User ${username} attempt to join room ${id}`)
+        console.log(`User ${username} joined room ${id}`)
         if (room) {
             console.log(`User joined ${room.name}`)
             room.users.push(user_info);
