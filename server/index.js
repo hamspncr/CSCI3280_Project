@@ -1,4 +1,5 @@
-const WebSocket = require ('ws')
+const WebSocket = require('ws')
+const crypto = require('crypto')
 
 const wss = new WebSocket.Server({ port: 8000 })
 
@@ -25,8 +26,12 @@ wss.on('connection', ws => {
     ws.on('message', message => {
         const {event, payload} = JSON.parse(message)
         if (event === 'get-rooms') {
+            const response = {
+                event: 'get-rooms',
+                payload: rooms
+            }
             if (ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify(rooms))
+                ws.send(JSON.stringify(response))
             }
         } else if (event === 'create-room') {
             const {name} = payload
@@ -37,6 +42,16 @@ wss.on('connection', ws => {
                 messages: []
             }
 
+            const response = {
+                event: 'create-room',
+                payload: {}
+            }
+            
+            wss.clients.forEach(client => {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(JSON.stringify(response))
+                }
+            })
             console.log(`Room created with id ${id}, named ${name}`)
         } else if (event === 'join-room') {
             const {id, username} = payload
@@ -78,6 +93,15 @@ wss.on('connection', ws => {
             } else {
                 console.log(`Room not found`)
             }
+        } else if (event === 'audio') {
+            const {id} = payload
+            const room = rooms[id]
+
+            room.users.forEach(user => {
+                if (user.connection.readyState === WebSocket.OPEN && user !== ws) {
+                    user.connection.send(payload);
+                }
+            })
         }
     })
 
