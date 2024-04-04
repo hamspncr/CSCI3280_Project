@@ -14,7 +14,7 @@ const VoiceChat = () => {
       // Request the current list of rooms when the connection is opened
       ws.current.send(JSON.stringify({ event: 'get-rooms' }));
     };
-  
+
     ws.current.onmessage = ({ data }) => {
       const message = JSON.parse(data);
       if (message.event === 'update-rooms') {
@@ -24,9 +24,12 @@ const VoiceChat = () => {
         // Handle incoming messages for a room
         setCurrentRoomId(message.payload.id);
         setMessages(message.payload.messages);
+      } else if (message.event === 'new-message') {
+        // When a new message is received, update the messages state
+        setMessages(prevMessages => [...prevMessages, message.payload]);
       }
     };
-  
+
     return () => {
       ws.current.close();
     };
@@ -43,12 +46,14 @@ const VoiceChat = () => {
     const username = prompt("Enter your username:");
     if (username) {
       ws.current.send(JSON.stringify({ event: 'join-room', payload: { id: roomId, username: username } }));
+      setCurrentRoomId(roomId); // Set the current room id when a room is joined
     }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (text && currentRoomId) {
+      // Use a different username instead of 'YourUsername'
       ws.current.send(JSON.stringify({ event: 'send-message', payload: { username: 'YourUsername', id: currentRoomId, text } }));
       setText("");
     }

@@ -75,9 +75,9 @@ ws.on('message', message => {
             room.messages.push(msg)
             room.users.forEach(user => {
                 if (user.connection.readyState === WebSocket.OPEN) {
-                    user.connection.send(JSON.stringify(msg));
+                    user.connection.send(JSON.stringify({ event: 'new-message', payload: msg }));
                 }
-            })
+            });
         } else {
             console.log(`Room not found`)
         }
