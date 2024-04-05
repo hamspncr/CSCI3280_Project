@@ -7,14 +7,6 @@ const VoiceChat = () => {
   const [loading, setLoading] = useState(true);
   const [rooms, setRooms] = useState(null);
   const [createRoomInfo, setCreateRoomInfo] = useState({ name: "" });
-  // Code for WebSocket connection (note 'ws' only works in the server, need to use native WebSocket object for frontend)
-  /*
-    Legacy code (in case it is needed later)
-    const ws = new WebSocket("ws://localhost:8000")
-    ws.addEventListener('open', () => {
-        console.log("Connected to server!")
-    })
-    */
   const ws = useRef(null);
 
   useEffect(() => {
@@ -103,12 +95,13 @@ const VoiceChat = () => {
             className="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded"
             onClick={handleRefresh}
           >
-            Refresh rooms
+            Refresh room info
           </button>
           <table className="table-auto w-full mb-4">
             <thead>
               <tr className="bg-gray-700">
                 <th className="px-4 py-2">Room Name</th>
+                <th className="px-4 py-2">Users</th>
                 <th className="px-4 py-2">Actions</th>
               </tr>
             </thead>
@@ -117,6 +110,11 @@ const VoiceChat = () => {
                 Object.entries(rooms).map(([id, room]) => (
                   <tr key={id} className="bg-gray-600">
                     <td className="border px-4 py-2">{room.name}</td>
+                    <td className="border px-4 py-2">
+                      {`${room.users
+                        .map((user) => `${user.username}, `)
+                        .join("")}`}
+                    </td>
                     <td className="border px-4 py-2">
                       {username && (
                         <Link disabled to={`/voice-chat/${id}`}>

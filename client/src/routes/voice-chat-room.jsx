@@ -1,5 +1,5 @@
 import { useContext, useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { UsernameContext } from "../main";
 
 const VoiceChatRoom = () => {
@@ -9,6 +9,7 @@ const VoiceChatRoom = () => {
   const [joined, setJoined] = useState(false);
   const [roomInfo, setRoomInfo] = useState(null);
   const [message, setMessage] = useState("");
+  const navigate = useNavigate();
   const ws = useRef(null);
 
   useEffect(() => {
@@ -17,6 +18,7 @@ const VoiceChatRoom = () => {
       setLoading(false);
       if (!username) {
         console.log("Something bad must've happened");
+        navigate("/voice-chat");
       } else {
         const get_room = {
           event: "get-room",
@@ -46,6 +48,8 @@ const VoiceChatRoom = () => {
         setJoined(true);
         setRoomInfo(payload);
       } else if (event === "get-room") {
+        setRoomInfo(payload);
+      } else if (event === "leave-room") {
         setRoomInfo(payload);
       } else if (event === "send-message") {
         setRoomInfo((prev) => ({
@@ -78,7 +82,20 @@ const VoiceChatRoom = () => {
 
       ws.current.send(JSON.stringify(send_message));
     }
-    setMessage("")
+    setMessage("");
+  };
+
+  const handleLeaveRoom = () => {
+    const leave_room = {
+      event: "leave-room",
+      payload: {
+        id: roomID,
+        username: username,
+      },
+    };
+
+    ws.current.send(JSON.stringify(leave_room));
+    navigate("/voice-chat")
   };
 
   return (
@@ -101,6 +118,12 @@ const VoiceChatRoom = () => {
         </div>
       ) : (
         <div className="bg-gray-800 min-h-screen text-white p-4">
+          <button
+            className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded"
+            onClick={handleLeaveRoom}
+          >
+            Leave
+          </button>
           <table className="table-auto w-full mb-4">
             <thead>
               <tr className="bg-gray-700">

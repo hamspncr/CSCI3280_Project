@@ -72,7 +72,7 @@ wss.on('connection', ws => {
             }
             
             if (room) {
-                console.log(`${username} joined ${room.name}`)
+                console.log(`${username} joined ${room.name}, ${id}`)
                 room.users.push(user_info);
 
                 const response = {
@@ -89,6 +89,30 @@ wss.on('connection', ws => {
                 console.log(`Room not found`)
             }
 
+        } else if (event === 'leave-room') {
+            const {id, username} = payload
+            const room = rooms[id]
+
+            if (room) {
+                console.log(`${username} left ${room.name}, ${id}`)
+                Object.values(rooms).forEach(room => {
+                    const index = room.users.findIndex(user => user.connection === ws);
+                    if (index !== -1) {
+                        room.users.splice(index, 1);
+        
+                        const response = {
+                            event: "leave-room",
+                            payload: room
+                        }
+                        room.users.forEach(user => {
+                            if (user.connection.readyState === WebSocket.OPEN) {
+                                user.connection.send(JSON.stringify(response));
+                            }
+                        })
+                    }
+                })
+
+            }
         } else if (event === 'send-message') {
             const {id, messageInfo} = payload
             const room = rooms[id]
@@ -107,13 +131,14 @@ wss.on('connection', ws => {
             } else {
                 console.log(`Room not found`)
             }
+        // Very not done
         } else if (event === 'audio') {
             const {id} = payload
             const room = rooms[id]
 
             room.users.forEach(user => {
                 if (user.connection.readyState === WebSocket.OPEN && user !== ws) {
-                    user.connection.send(payload);
+                    user.connection.send(JSON.stringify(payload));
                 }
             })
         }
@@ -125,6 +150,16 @@ wss.on('connection', ws => {
             const index = room.users.findIndex(user => user.connection === ws);
             if (index !== -1) {
                 room.users.splice(index, 1);
+
+                const response = {
+                    event: "leave-room",
+                    payload: room
+                }
+                room.users.forEach(user => {
+                    if (user.connection.readyState === WebSocket.OPEN) {
+                        user.connection.send(JSON.stringify(response));
+                    }
+                })
             }
         })
     })
