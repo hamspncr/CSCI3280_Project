@@ -1,4 +1,4 @@
-const App = () => {
+const Root = () => {
   return (
     <>
       <div className="bg-gray-500 text-white text-4xl">
@@ -15,4 +15,4 @@ const App = () => {
   );
 };
 
-export default App;
+export default Root;
