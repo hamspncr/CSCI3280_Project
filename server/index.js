@@ -136,9 +136,14 @@ wss.on('connection', ws => {
             const {id} = payload
             const room = rooms[id]
 
+            const response = {
+                event: "audio",
+                payload: payload
+            }
+
             room.users.forEach(user => {
-                if (user.connection.readyState === WebSocket.OPEN && user !== ws) {
-                    user.connection.send(JSON.stringify(payload));
+                if (user.connection.readyState === WebSocket.OPEN && user.connection !== ws) {
+                    user.connection.send(JSON.stringify(response));
                 }
             })
         }

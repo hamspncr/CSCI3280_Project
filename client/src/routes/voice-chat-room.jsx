@@ -11,6 +11,8 @@ const VoiceChatRoom = () => {
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
   const ws = useRef(null);
+  const recorder = useRef(null);
+  const recordInterval = useRef(null);
 
   useEffect(() => {
     ws.current = new WebSocket("ws://localhost:8000");
@@ -20,6 +22,7 @@ const VoiceChatRoom = () => {
         console.log("Something bad must've happened");
         navigate("/voice-chat");
       } else {
+
         const get_room = {
           event: "get-room",
           payload: {
@@ -42,11 +45,42 @@ const VoiceChatRoom = () => {
       }
     };
 
-    ws.current.onmessage = ({ data }) => {
+    ws.current.onmessage = async ({ data }) => {
       const { event, payload } = JSON.parse(data);
       if (event === "join-room") {
         setJoined(true);
         setRoomInfo(payload);
+        const formatting = {
+          audio: {
+            channelCount: 1,
+            sampleSize: 8,
+            sampleRate: 44100
+          },
+        };
+        const stream = await navigator.mediaDevices.getUserMedia(formatting);
+        recorder.current = new MediaRecorder(stream);
+
+        recorder.current.ondataavailable = (e) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const audio_payload = {
+              event: "audio",
+              payload: {
+                id: roomID,
+                audioData: reader.result,
+              },
+            };
+            ws.current.send(JSON.stringify(audio_payload));
+          };
+          reader.readAsDataURL(e.data);
+        };
+
+        recorder.current.start();
+
+        recordInterval.current = setInterval(() => {
+          recorder.current.stop();
+          recorder.current.start();
+        }, 300);
       } else if (event === "get-room") {
         setRoomInfo(payload);
       } else if (event === "leave-room") {
@@ -56,6 +90,12 @@ const VoiceChatRoom = () => {
           ...prev,
           messages: [...prev.messages, payload],
         }));
+      } else if (event === "audio") {
+        const { audioData } = payload;
+        const audioSegment = new Audio();
+        audioSegment.volume = 0.02;
+        audioSegment.src = audioData;
+        audioSegment.play();
       }
     };
 
@@ -95,7 +135,7 @@ const VoiceChatRoom = () => {
     };
 
     ws.current.send(JSON.stringify(leave_room));
-    navigate("/voice-chat")
+    navigate("/voice-chat");
   };
 
   return (
