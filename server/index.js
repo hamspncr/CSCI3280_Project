@@ -90,15 +90,15 @@ wss.on('connection', ws => {
             }
 
         } else if (event === 'send-message') {
-            const {username, id, text} = payload
+            const {id, messageInfo} = payload
             const room = rooms[id]
 
             if (room) {
                 const response = {
-                    name: username,
-                    content: text
+                    event: "send-message",
+                    payload: messageInfo
                 }
-                room.messages.push(response)
+                room.messages.push(messageInfo)
                 room.users.forEach(user => {
                     if (user.connection.readyState === WebSocket.OPEN) {
                         user.connection.send(JSON.stringify(response));

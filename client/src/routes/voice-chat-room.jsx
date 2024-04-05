@@ -8,31 +8,36 @@ const VoiceChatRoom = () => {
   const [loading, setLoading] = useState(true);
   const [joined, setJoined] = useState(false);
   const [roomInfo, setRoomInfo] = useState(null);
+  const [message, setMessage] = useState("");
   const ws = useRef(null);
 
   useEffect(() => {
     ws.current = new WebSocket("ws://localhost:8000");
     ws.current.onopen = () => {
       setLoading(false);
-      const get_room = {
-        event: "get-room",
-        payload: {
-          id: roomID,
-        },
-      };
+      if (!username) {
+        console.log("Something bad must've happened");
+      } else {
+        const get_room = {
+          event: "get-room",
+          payload: {
+            id: roomID,
+          },
+        };
 
-      ws.current.send(JSON.stringify(get_room));
+        ws.current.send(JSON.stringify(get_room));
 
-      const join_room = {
-        event: "join-room",
-        payload: {
-          id: roomID,
-          username: username,
-        },
-      };
+        const join_room = {
+          event: "join-room",
+          payload: {
+            id: roomID,
+            username: username,
+          },
+        };
 
-      console.log(join_room)
-      ws.current.send(JSON.stringify(join_room));
+        console.log(join_room);
+        ws.current.send(JSON.stringify(join_room));
+      }
     };
 
     ws.current.onmessage = ({ data }) => {
@@ -42,6 +47,11 @@ const VoiceChatRoom = () => {
         setRoomInfo(payload);
       } else if (event === "get-room") {
         setRoomInfo(payload);
+      } else if (event === "send-message") {
+        setRoomInfo((prev) => ({
+          ...prev,
+          messages: [...prev.messages, payload],
+        }));
       }
     };
 
@@ -50,19 +60,89 @@ const VoiceChatRoom = () => {
     };
   }, []);
 
+  const handleMessage = (e) => {
+    e.preventDefault();
+
+    if (message.trim() !== "") {
+      const send_message = {
+        event: "send-message",
+        payload: {
+          id: roomID,
+          messageInfo: {
+            username: username,
+            type: "text",
+            content: message,
+          },
+        },
+      };
+
+      ws.current.send(JSON.stringify(send_message));
+    }
+    setMessage("")
+  };
+
   return (
     <>
-      {loading ? (
-        <div>Connecting to server...</div>
+      {!username ? (
+        <div className="bg-gray-800 min-h-screen text-white p-4">
+          {`You shouldn't be here (probably disconnected?)`}
+        </div>
+      ) : loading ? (
+        <div className="bg-gray-800 min-h-screen text-white p-4">
+          Connecting to server...
+        </div>
       ) : !roomInfo ? (
-        <div>Room not found</div>
+        <div className="bg-gray-800 min-h-screen text-white p-4">
+          Room not found
+        </div>
       ) : !joined ? (
-        <div>Joining room</div>
+        <div className="bg-gray-800 min-h-screen text-white p-4">
+          Joining room
+        </div>
       ) : (
-        <div>
-          {roomInfo.users.map((user, i) => (
-            <li key={i}>{user.username}</li>
-          ))}
+        <div className="bg-gray-800 min-h-screen text-white p-4">
+          <table className="table-auto w-full mb-4">
+            <thead>
+              <tr className="bg-gray-700">
+                <th className="px-4 py-2">Users</th>
+              </tr>
+            </thead>
+            <tbody>
+              {roomInfo.users &&
+                roomInfo.users.map((user, i) => (
+                  <tr key={i} className="bg-gray-600">
+                    <td className="border px-4 py-2">{user.username}</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+          <div>
+            <div className="mb-4">
+              <h2 className="text-xl font-bold">Chat</h2>
+              <ul className="mb-4 h-64 overflow-auto bg-gray-700 p-3">
+                {roomInfo.messages.map((message, i) => (
+                  <li key={i} className="border-b border-gray-500 py-2">
+                    {message.username}: {message.content}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <form onSubmit={handleMessage} className="mb-4 flex">
+              <input
+                className="w-full border text-sm rounded-lg p-2.5 bg-gray-700 border-gray-600 placeholder-gray-400"
+                type="text"
+                value={message}
+                placeholder="Enter text"
+                onChange={(e) => setMessage(e.target.value)}
+              />
+              <button
+                type="submit"
+                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded ml-2"
+              >
+                Send
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </>

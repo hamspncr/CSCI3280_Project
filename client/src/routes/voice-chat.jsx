@@ -5,7 +5,6 @@ import { UsernameContext } from "../main";
 const VoiceChat = () => {
   const { username, setUsername } = useContext(UsernameContext);
   const [loading, setLoading] = useState(true);
-  //const [username, setUsername] = useState("");
   const [rooms, setRooms] = useState(null);
   const [createRoomInfo, setCreateRoomInfo] = useState({ name: "" });
   // Code for WebSocket connection (note 'ws' only works in the server, need to use native WebSocket object for frontend)
@@ -68,10 +67,13 @@ const VoiceChat = () => {
   return (
     <>
       {loading ? (
-        <div>Connecting to server...</div>
+        <div className="bg-gray-800 min-h-screen text-white p-4">
+          Connecting to server...
+        </div>
       ) : (
-        <div>
+        <div className="bg-gray-800 min-h-screen text-white p-4">
           <input
+            className="border text-sm rounded-lg p-2.5 bg-gray-700 border-gray-600 placeholder-gray-400"
             type="text"
             value={username}
             placeholder="Enter display name:"
@@ -81,12 +83,14 @@ const VoiceChat = () => {
           <h1>Create Room:</h1>
           <form onSubmit={handleCreateRoom}>
             <input
+              className="border text-sm rounded-lg p-2.5 bg-gray-700 border-gray-600 placeholder-gray-400"
               type="text"
               value={createRoomInfo.name}
               placeholder="Name"
               onChange={(e) => setCreateRoomInfo({ name: e.target.value })}
             />
             <button
+              className="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded"
               disabled={
                 createRoomInfo.name.trim() === "" || username.trim() === ""
               }
@@ -95,14 +99,35 @@ const VoiceChat = () => {
               Create Room
             </button>
           </form>
-          <button onClick={handleRefresh}>Refresh rooms</button>
-          <h1>Available rooms:</h1>
-          <ul>
-            {rooms &&
-              Object.entries(rooms).map(([id, room]) => (
-                <li key={id}><Link disabled to={`/voice-chat/${id}`}>{room.name}</Link></li>
-              ))}
-          </ul>
+          <button
+            className="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded"
+            onClick={handleRefresh}
+          >
+            Refresh rooms
+          </button>
+          <table className="table-auto w-full mb-4">
+            <thead>
+              <tr className="bg-gray-700">
+                <th className="px-4 py-2">Room Name</th>
+                <th className="px-4 py-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rooms &&
+                Object.entries(rooms).map(([id, room]) => (
+                  <tr key={id} className="bg-gray-600">
+                    <td className="border px-4 py-2">{room.name}</td>
+                    <td className="border px-4 py-2">
+                      {username && (
+                        <Link disabled to={`/voice-chat/${id}`}>
+                          Join
+                        </Link>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
         </div>
       )}
     </>
