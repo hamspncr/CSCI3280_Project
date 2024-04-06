@@ -1,6 +1,8 @@
 const WebSocket = require('ws')
 const crypto = require('crypto')
 const { PeerServer } = require("peer");
+const dotenv = require("dotenv")
+dotenv.config({ path: "./.env"})
 
 const peerServer = PeerServer({ port: 8001, path: "/peer-server" });
 
@@ -131,9 +133,26 @@ wss.on('connection', ws => {
                     payload: messageInfo
                 }
                 room.messages.push(messageInfo)
-                room.users.forEach(user => {
+                room.users.forEach(async user => {
                     if (user.connection.readyState === WebSocket.OPEN) {
-                        user.connection.send(JSON.stringify(response));
+                        // Check if the message is a command
+                        if (messageInfo.content.startsWith("/giphy")) {
+                            console.log("Giphy API called")
+                            const query = messageInfo.content.substring(messageInfo.content.indexOf(' ') + 1)
+                            const API_KEY = process.env.GIPHY_API_KEY
+                            const giphyResponse = await fetch(`https://api.giphy.com/v1/gifs/random?api_key=${API_KEY}&tag=${query}&limit=1&offset=0&rating=g&lang=en`)
+                            const giphyData = await giphyResponse.json()
+                            const giphyUrl = giphyData.data.embed_url
+                            const newMessageInfo = {
+                                ...messageInfo,
+                                content: `$$EMBED_IMG_${giphyUrl}`
+                            }
+                            response.payload = newMessageInfo
+                            user.connection.send(JSON.stringify(response));
+                        }
+                        else {
+                            user.connection.send(JSON.stringify(response));
+                        }
                     }
                 })
             } else {

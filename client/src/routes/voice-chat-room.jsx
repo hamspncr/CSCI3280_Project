@@ -154,6 +154,24 @@ const VoiceChatRoom = () => {
     navigate("/voice-chat");
   };
 
+  const handleReturnMessage = (username, content) => {
+    if (content.startsWith("$$EMBED_IMG_")) {
+      return (
+        <>
+          {username}:
+          <iframe src={content.split("$$EMBED_IMG_")[1]} frameBorder="0" className="giphy-embed" allowFullScreen></iframe>
+        </>
+      )
+    }
+    else {
+      return (
+        <>
+          {username}: {content}
+        </>
+      )
+    }
+  }
+
   return (
     <>
       {!username ? (
@@ -201,7 +219,7 @@ const VoiceChatRoom = () => {
               <ul className="mb-4 h-64 overflow-auto bg-gray-700 p-3">
                 {roomInfo.messages.map((message, i) => (
                   <li key={i} className="border-b border-gray-500 py-2">
-                    {message.username}: {message.content}
+                    {handleReturnMessage(message.username, message.content)}
                   </li>
                 ))}
               </ul>
