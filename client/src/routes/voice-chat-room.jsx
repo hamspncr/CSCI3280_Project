@@ -1,6 +1,7 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { UsernameContext } from "../main";
+import Peer from "peerjs";
 
 const VoiceChatRoom = () => {
   const { roomID } = useParams();
@@ -11,6 +12,10 @@ const VoiceChatRoom = () => {
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
   const ws = useRef(null);
+
+  const peer = useRef(null)
+  const my_id = useRef(null)
+  const myStream = useRef(null)
 
   useEffect(() => {
     ws.current = new WebSocket("ws://localhost:8000");
@@ -40,6 +45,22 @@ const VoiceChatRoom = () => {
         console.log(join_room);
         ws.current.send(JSON.stringify(join_room));
       }
+
+      peer.current = new Peer(undefined, {
+        host: "localhost",
+        port: 8001,
+        path: "/voice-chat",
+      });
+  
+      peer.current.on("open", (id) => {
+        console.log(`Connected to peer server with id ${id}`)
+        my_id.current = id
+      });
+  
+      peer.current.on("call", (call) => {
+        console.log("Received a call")
+        call.answer(myStream.current)
+      })
     };
 
     ws.current.onmessage = ({ data }) => {
@@ -57,7 +78,60 @@ const VoiceChatRoom = () => {
           messages: [...prev.messages, payload],
         }));
       }
+
+      const parsedPeerData = JSON.parse(data);
+      if (parsedPeerData.type === "message") {
+        setMessages((prev) => [...prev, parsedData.message]);
+      }
+      else if (parsedPeerData.type === "peer-connected") {
+        console.log(`${parsedPeerData.join_id} has joined`)
+        const all_user_ids = parsedPeerData.user_ids
+        console.log(all_user_ids)
+        handleConnection(all_user_ids)
+      }
+      else if (parsedPeerData.type === "peer-disconnected") {
+        console.log(`${parsedPeerData.leaver_id} has left`)
+        let leaver_id = parsedPeerData.leaver_id
+        handleLeaving(leaver_id)
+      }
     };
+
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then((stream) => {
+      const video = document.createElement('video')
+      video.id = my_id.current
+      video.srcObject = stream
+      myStream.current = stream
+      video.play()
+      document.querySelector(".video-grid").append(video)
+    })
+
+    const handleConnection = (all_ids) => {
+      all_ids.forEach(user_id => {
+        if (user_id != my_id.current) {
+          const call = peer.current.call(user_id, myStream.current)
+          // console.log(call)
+          call.on("stream", userStream => {
+            console.log("call received")
+            /*
+            const video = document.createElement('video')
+            video.id = user_id
+            video.srcObject = userVideoStream
+            video.play()
+            document.querySelector(".video-grid").append(video)
+            */
+          })   
+        }
+      })
+    }
+
+    
+    const handleLeaving = (leaver_id) => {
+      document.querySelectorAll(".video-grid video").forEach(video => {
+        if (video.id === leaver_id) {
+          video.remove()
+        }
+      })
+    }
 
     return () => {
       ws.current.close();
@@ -98,6 +172,10 @@ const VoiceChatRoom = () => {
     navigate("/voice-chat")
   };
 
+  // TODO: Change these CSS classes to Tailwind
+  const videoGridCSS = {"display":"grid","gridTemplateColumns":"repeat(auto-fill, 300px)","gridAutoRows":"300px"}
+  const videoCSS = {"width":"100%", "height":"100%", "objectFit":"cover"}
+
   return (
     <>
       {!username ? (
@@ -124,6 +202,14 @@ const VoiceChatRoom = () => {
           >
             Leave
           </button>
+          <div>
+            <div className="mb-4">
+              <h2 className="text-xl font-bold">Videos</h2>
+              <div className="video-grid" style={videoGridCSS}>
+
+              </div>
+            </div>
+          </div>
           <table className="table-auto w-full mb-4">
             <thead>
               <tr className="bg-gray-700">

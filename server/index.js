@@ -1,7 +1,9 @@
 const WebSocket = require('ws')
 const crypto = require('crypto')
+const { PeerServer } = require("peer")
 
 const wss = new WebSocket.Server({ port: 8000 })
+const peerServer = PeerServer({ port: 8001, path: "/voice-chat" })
 
 const rooms = {
     "0b01c8f2-e484-41a4-932a-e1af9f959d0b": {
@@ -18,6 +20,32 @@ const broadcastRoomInfo = (rooms) => {
         }
     })
 }
+
+// List of all connected users
+const connectedUsers = new Set()
+
+// Listening for connections to the PeerJS server
+peerServer.on('connection', (client) => { 
+    console.log(`PeerJS: New client connected with id=${client.id}`);
+    connectedUsers.add(client.id);
+    console.log("Connected users: ", connectedUsers)
+    wss.clients.forEach(ws => {
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'peer-connected', join_id: client.id, user_ids: Array.from(connectedUsers)}));
+        }
+    });
+});
+
+peerServer.on('disconnect', (client) => { 
+    console.log(`PeerJS: Client disconnected with id=${client.id}`);
+    connectedUsers.delete(client.id);
+    console.log("Connected users: ", connectedUsers)
+    wss.clients.forEach(ws => {
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'peer-disconnected', leaver_id: client.id, user_ids: Array.from(connectedUsers)}));
+        }
+    });
+});
 
 wss.on('connection', ws => {
 
