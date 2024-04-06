@@ -13,7 +13,7 @@ peerServer.on('connection', (client) => {
     console.log("Connected users: ", connectedUsers)
     wss.clients.forEach(ws => {
         if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'peer-connected', id: client.id}));
+            ws.send(JSON.stringify({ type: 'peer-connected', join_id: client.id, user_ids: Array.from(connectedUsers)}));
         }
     });
 });
@@ -24,7 +24,7 @@ peerServer.on('disconnect', (client) => {
     console.log("Connected users: ", connectedUsers)
     wss.clients.forEach(ws => {
         if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'peer-connected', id: client.id}));
+            ws.send(JSON.stringify({ type: 'peer-disconnected', leaver_id: client.id, user_ids: Array.from(connectedUsers)}));
         }
     });
 });
