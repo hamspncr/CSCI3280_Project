@@ -7,11 +7,13 @@ You'll need [Node.js](https://nodejs.org/en/download)
 Requires `ws` and `nodemon`, run the following commands if they're not already installed in the server directory:
 ```console
 npm i ws
+npm i peer
 npm i nodemon --save-dev
 ```
 
 ## Running
 
+To start the WebSocket server:
 ```console
 npm run server
 ```
