@@ -157,11 +157,15 @@ wss.on('connection', ws => {
         Object.values(rooms).forEach(room => {
             const index = room.users.findIndex(user => user.connection === ws);
             if (index !== -1) {
+                const leaver = room.users[index]
                 room.users.splice(index, 1);
 
                 const response = {
                     event: "leave-room",
-                    payload: room
+                    payload: {
+                        newRoom: room,
+                        leaver: leaver
+                    }
                 }
                 room.users.forEach(user => {
                     if (user.connection.readyState === WebSocket.OPEN) {

@@ -60,7 +60,7 @@ const VoiceChatRoom = () => {
             call.answer(myStream.current);
             call.on("stream", (remoteStream) => {
               const incomingAudio = new Audio();
-              incomingAudio.volume = 0.02;
+              incomingAudio.volume = 1;
               incomingAudio.srcObject = remoteStream;
               incomingAudio.play();
             });
@@ -154,6 +154,25 @@ const VoiceChatRoom = () => {
     navigate("/voice-chat");
   };
 
+  const handleMute = () => {
+    if (myStream.current) {
+      const enabled = myStream.current.getAudioTracks()[0].enabled;
+      const button = document.querySelector(".shut-up");
+      if (enabled) {
+        myStream.current.getAudioTracks()[0].enabled = false;
+        button.innerHTML = "speak";
+        alert("You have been muted");
+      } else {
+        myStream.current.getAudioTracks()[0].enabled = true;
+        button.innerHTML = "shh";
+        alert("You have been unmuted");
+      }
+    } else {
+      alert("No active stream found");
+      console.log("No active stream found, something went wrong")
+    }
+  }
+
   return (
     <>
       {!username ? (
@@ -180,6 +199,17 @@ const VoiceChatRoom = () => {
           >
             Leave
           </button>
+          <div>
+            <div className="mb-4">
+              <h2 className="text-xl font-bold">Voice Controls</h2>
+              <button
+                className="shut-up bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded"
+                onClick={handleMute}
+              >
+                shh
+              </button>
+            </div>
+          </div>
           <table className="table-auto w-full mb-4">
             <thead>
               <tr className="bg-gray-700">
