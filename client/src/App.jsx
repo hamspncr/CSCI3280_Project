@@ -1,0 +1,25 @@
+import { createContext, useState } from "react";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import AudioEditor from "./routes/audio-editor";
+import Root from "./routes/root";
+import VoiceChat from "./routes/voice-chat";
+import VoiceChatRoom from "./routes/voice-chat-room";
+
+export const UsernameContext = createContext(null);
+
+export const App = () => {
+  const [username, setUsername] = useState("");
+  const [userId, setUserId] = useState(crypto.randomUUID())
+  return (
+    <UsernameContext.Provider value={{username, setUsername, userId, setUserId}}>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Root />} />
+          <Route path="/audio-editor" element={<AudioEditor />} />
+          <Route path="/voice-chat" element={<VoiceChat />} />
+          <Route path="/voice-chat/:roomID" element={<VoiceChatRoom />} />
+        </Routes>
+      </BrowserRouter>
+    </UsernameContext.Provider>
+  );
+};

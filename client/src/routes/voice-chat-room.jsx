@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { UsernameContext } from "../main";
+import { UsernameContext } from "../App";
 
 const VoiceChatRoom = () => {
   const { roomID } = useParams();
