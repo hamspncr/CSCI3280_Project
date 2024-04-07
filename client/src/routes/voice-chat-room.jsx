@@ -163,6 +163,14 @@ const VoiceChatRoom = () => {
         </>
       )
     }
+    else if (content.startsWith("$$EMBED_VIDEO_")) {
+      return (
+        <>
+          {username}:
+          <iframe src={content.split("$$EMBED_VIDEO_")[1]} frameBorder="0" className="giphy-embed" allowFullScreen></iframe>
+        </>
+      )
+    }
     else {
       return (
         <>

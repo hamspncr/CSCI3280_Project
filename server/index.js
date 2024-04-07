@@ -153,6 +153,23 @@ wss.on('connection', ws => {
                             response.payload = newMessageInfo
                             user.connection.send(JSON.stringify(response));
                         }
+                        else if (messageInfo.content.startsWith("/yt")) {
+                            console.log("YouTube API called")
+                            const query = messageInfo.content.substring(messageInfo.content.indexOf(' ') + 1)
+                            const API_KEY = process.env.YOUTUBE_API_KEY
+                            const youtubeResponse = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q=${query}&type=video&key=${API_KEY}`)
+                            const youtubeData = await youtubeResponse.json()
+                            let youtubeUrl = "https://www.youtube.com/embed/dQw4w9WgXcQ"
+                            if (youtubeData.items.length !== 0) {
+                                youtubeUrl = `https://www.youtube.com/embed/${youtubeData.items[0].id.videoId}`
+                            }
+                            const newMessageInfo = {
+                                ...messageInfo,
+                                content: `$$EMBED_VIDEO_${youtubeUrl}`
+                            }
+                            response.payload = newMessageInfo
+                            user.connection.send(JSON.stringify(response));
+                        }
                         else {
                             user.connection.send(JSON.stringify(response));
                         }
