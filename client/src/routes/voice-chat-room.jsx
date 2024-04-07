@@ -76,10 +76,14 @@ const VoiceChatRoom = () => {
             call.on("stream", (remoteStream) => {
               console.log("Answering a call from a joined user");
               activeCalls.current[call.peer] = call;
-              const remoteMediaStreamSource =
-                context.current.createMediaStreamSource(remoteStream);
-              remoteMediaStreamSource.connect(gain.current);
-              context.current.resume();
+              // const remoteMediaStreamSource =
+              //   context.current.createMediaStreamSource(remoteStream);
+              // remoteMediaStreamSource.connect(gain.current);
+              // context.current.resume();
+              const incomingAudio = new Audio();
+              incomingAudio.volume = 0.02;
+              incomingAudio.srcObject = remoteStream;
+              incomingAudio.play()
 
               activeStreams.current.push(remoteStream);
             });
@@ -100,10 +104,14 @@ const VoiceChatRoom = () => {
               call.on("stream", (remoteStream) => {
                 console.log("Calling everybody in the room");
                 activeCalls.current[user.peerId] = call;
-                const remoteMediaStreamSource =
-                  context.current.createMediaStreamSource(remoteStream);
-                remoteMediaStreamSource.connect(gain.current);
-                context.current.resume();
+                // const remoteMediaStreamSource =
+                //   context.current.createMediaStreamSource(remoteStream);
+                // remoteMediaStreamSource.connect(gain.current);
+                // context.current.resume();
+                const incomingAudio = new Audio();
+                incomingAudio.volume = 0.02;
+                incomingAudio.srcObject = remoteStream;
+                incomingAudio.play()
 
                 activeStreams.current.push(remoteStream);
               });
@@ -145,7 +153,7 @@ const VoiceChatRoom = () => {
   }, []);
 
   // saveWave in utils automatically downloads it, this removes that
-  const createWave = (framedata, channels, rate, intPCM = false) => {
+  const createWave = async (framedata, channels, rate, intPCM = false) => {
     const sample_width = 4; // decodeAudioData always gives floating point 32-bit samples
     const data_chunk_size = framedata.byteLength;
     const fmt_chunk_size = 16;
@@ -176,9 +184,20 @@ const VoiceChatRoom = () => {
     view.setUint32(40, data_chunk_size, true);
 
     const blob = new Blob([header, framedata], { type: "audio/wav" });
-    const url = URL.createObjectURL(blob);
+    const url = await readFileAsDataURL(blob);
 
     return url;
+  };
+
+  const readFileAsDataURL = (blob) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const url = reader.result;
+        resolve(url);
+      };
+      reader.readAsDataURL(blob);
+    });
   };
 
   const handleMessage = (e) => {
@@ -258,12 +277,12 @@ const VoiceChatRoom = () => {
         const audioBuffer = await context.current.decodeAudioData(buf);
 
         const toSave = audioToArrayBuffer(audioBuffer);
-        const url = createWave(
+        const url = await createWave(
           toSave,
           audioBuffer.numberOfChannels,
           audioBuffer.sampleRate
         );
-
+        console.log(url);
         const send_message = {
           event: "send-message",
           payload: {
@@ -356,7 +375,13 @@ const VoiceChatRoom = () => {
                     return (
                       <li key={i}>
                         {message.username}{" "}
-                        <a className="text-blue-400 hover:text-blue-600 " href={message.content}>Recorded the chat, click here to download</a>
+                        <a
+                          className="text-blue-400 hover:text-blue-600 "
+                          href={message.content}
+                          download
+                        >
+                          Recorded the chat, click here to download
+                        </a>
                       </li>
                     );
                   }
