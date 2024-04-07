@@ -404,32 +404,6 @@ const VoiceChatRoom = () => {
               </button>
             </form>
           </div>
-          {/* <div>
-            <h2 className="text-xl font-bold">Recordings</h2>
-            {isRecording ? (
-              <button
-                className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded"
-                onClick={stopRecording}
-              >
-                Stop Recording
-              </button>
-            ) : (
-              <button
-                className="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded"
-                onClick={startRecording}
-              >
-                Start Recording
-              </button>
-            )}
-
-            <ul>
-              {recordings.map((recording, index) => (
-                <li key={index}>
-                  <audio controls src={recording.url}></audio>
-                </li>
-              ))}
-            </ul>
-          </div> */}
         </div>
       )}
     </>
