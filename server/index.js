@@ -1,5 +1,8 @@
 const WebSocket = require('ws')
 const crypto = require('crypto')
+const { PeerServer } = require("peer");
+
+const peerServer = PeerServer({ port: 8001, path: "/peer-server" });
 
 const wss = new WebSocket.Server({ port: 8000 })
 
@@ -63,12 +66,13 @@ wss.on('connection', ws => {
             })
             console.log(`Room created with id ${id}, named ${name}`)
         } else if (event === 'join-room') {
-            const {id, username} = payload
+            const {id, username, peerId} = payload
             const room = rooms[id]
 
             const user_info = {
                 connection: ws,
-                username: username
+                username: username,
+                peerId: peerId
             }
             
             if (room) {
@@ -98,11 +102,15 @@ wss.on('connection', ws => {
                 Object.values(rooms).forEach(room => {
                     const index = room.users.findIndex(user => user.connection === ws);
                     if (index !== -1) {
+                        const leaver = room.users[index]
                         room.users.splice(index, 1);
         
                         const response = {
                             event: "leave-room",
-                            payload: room
+                            payload: {
+                                newRoom: room,
+                                leaver: leaver
+                            }
                         }
                         room.users.forEach(user => {
                             if (user.connection.readyState === WebSocket.OPEN) {
@@ -149,11 +157,15 @@ wss.on('connection', ws => {
         Object.values(rooms).forEach(room => {
             const index = room.users.findIndex(user => user.connection === ws);
             if (index !== -1) {
+                const leaver = room.users[index]
                 room.users.splice(index, 1);
 
                 const response = {
                     event: "leave-room",
-                    payload: room
+                    payload: {
+                        newRoom: room,
+                        leaver: leaver
+                    }
                 }
                 room.users.forEach(user => {
                     if (user.connection.readyState === WebSocket.OPEN) {
