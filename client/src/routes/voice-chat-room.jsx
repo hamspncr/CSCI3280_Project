@@ -7,11 +7,13 @@ const VoiceChatRoom = () => {
   const { roomID } = useParams();
   const { username } = useContext(UsernameContext);
   const [loading, setLoading] = useState(true);
-  const [joined, setJoined] = useState(false);
   const [roomInfo, setRoomInfo] = useState(null);
   const [message, setMessage] = useState("");
+
   const navigate = useNavigate();
   const ws = useRef(null);
+
+  const joined = useRef(false);
   const peer = useRef(null);
   const myPeerId = useRef(null);
   const myStream = useRef(null);
@@ -59,6 +61,8 @@ const VoiceChatRoom = () => {
           peer.current.on("call", (call) => {
             call.answer(myStream.current);
             call.on("stream", (remoteStream) => {
+              console.log("Answering a call from a joined user")
+              activeCalls.current[call.peer] = call;
               const incomingAudio = new Audio();
               incomingAudio.volume = 0.02;
               incomingAudio.srcObject = remoteStream;
@@ -73,13 +77,14 @@ const VoiceChatRoom = () => {
       const { event, payload } = JSON.parse(data);
       if (event === "join-room") {
         setRoomInfo(payload);
-        if (!joined) {
-          setJoined(true);
+        if (!joined.current) {
+          joined.current = true;
           payload.users.forEach((user) => {
             if (user.peerId !== myPeerId.current) {
               const call = peer.current.call(user.peerId, myStream.current);
-              activeCalls.current[user.peerId] = call;
               call.on("stream", (remoteStream) => {
+                console.log("Calling everybody in the room")
+                activeCalls.current[user.peerId] = call;
                 const incomingAudio = new Audio();
                 incomingAudio.volume = 0.02;
                 incomingAudio.srcObject = remoteStream;
@@ -92,7 +97,6 @@ const VoiceChatRoom = () => {
         setRoomInfo(payload);
       } else if (event === "leave-room") {
         const { newRoom, leaver } = payload;
-        console.log(leaver)
         setRoomInfo(newRoom);
 
         activeCalls.current[leaver.peerId].close();
@@ -108,6 +112,7 @@ const VoiceChatRoom = () => {
     return () => {
       // eslint-disable-next-line react-hooks/exhaustive-deps
       Object.values(activeCalls.current).forEach((call) => call.close());
+      activeCalls.current = {};
 
       if (peer.current) {
         peer.current.destroy();
@@ -117,7 +122,7 @@ const VoiceChatRoom = () => {
       }
       ws.current.close();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleMessage = (e) => {
@@ -166,11 +171,7 @@ const VoiceChatRoom = () => {
         </div>
       ) : !roomInfo ? (
         <div className="bg-gray-800 min-h-screen text-white p-4">
-          Room not found
-        </div>
-      ) : !joined ? (
-        <div className="bg-gray-800 min-h-screen text-white p-4">
-          Joining room
+          Finding room...
         </div>
       ) : (
         <div className="bg-gray-800 min-h-screen text-white p-4">
