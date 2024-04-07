@@ -24,7 +24,7 @@ const VoiceChatRoom = () => {
 
   const context = useRef(null);
   const gain = useRef(null);
-  const activeStreams = useRef([]);
+  const activeStreams = useRef({});
   const recorder = useRef(null);
 
   useEffect(() => {
@@ -83,9 +83,10 @@ const VoiceChatRoom = () => {
               const incomingAudio = new Audio();
               incomingAudio.volume = 0.02;
               incomingAudio.srcObject = remoteStream;
-              incomingAudio.play()
+              incomingAudio.play();
 
-              activeStreams.current.push(remoteStream);
+              activeStreams.current[call.peer] = remoteStream;
+              //activeStreams.current.push(remoteStream);
             });
           });
         });
@@ -111,9 +112,10 @@ const VoiceChatRoom = () => {
                 const incomingAudio = new Audio();
                 incomingAudio.volume = 0.02;
                 incomingAudio.srcObject = remoteStream;
-                incomingAudio.play()
+                incomingAudio.play();
 
-                activeStreams.current.push(remoteStream);
+                activeStreams.current[user.peerId] = remoteStream;
+                //activeStreams.current.push(remoteStream);
               });
             }
           });
@@ -127,6 +129,7 @@ const VoiceChatRoom = () => {
 
         activeCalls.current[leaver.peerId].close();
         delete activeCalls.current[leaver.peerId];
+        delete activeStreams.current[leaver.peerId];
       } else if (event === "send-message") {
         setRoomInfo((prev) => ({
           ...prev,
@@ -139,7 +142,7 @@ const VoiceChatRoom = () => {
       // eslint-disable-next-line react-hooks/exhaustive-deps
       Object.values(activeCalls.current).forEach((call) => call.close());
       activeCalls.current = {};
-      activeStreams.current = [];
+      activeStreams.current = {};
 
       if (peer.current) {
         peer.current.destroy();
@@ -253,7 +256,12 @@ const VoiceChatRoom = () => {
     if (!recording) {
       const mediaStreamDestination =
         context.current.createMediaStreamDestination();
-      activeStreams.current.forEach((stream) => {
+      // activeStreams.current.forEach((stream) => {
+      //   const sourceToDest = context.current.createMediaStreamSource(stream);
+      //   sourceToDest.connect(mediaStreamDestination);
+      // });
+
+      Object.values(activeStreams.current).forEach((stream) => {
         const sourceToDest = context.current.createMediaStreamSource(stream);
         sourceToDest.connect(mediaStreamDestination);
       });
