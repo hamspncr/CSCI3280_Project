@@ -150,6 +150,33 @@ wss.on('connection', ws => {
                 }
             })
         }
+        else if (event === 'send-audio')
+        {
+            const {id, audioData, username} = payload;
+            const room = rooms[id];
+            if (room) {
+                console.log(`${username} sent audio in ${room.name}, ${id}`);
+
+                const audioMessage = {
+                    event: "receive-audio",
+                    payload: {
+                        id: id,
+                        audioData: audioData,
+                        username: username
+                    }
+                };
+
+                // Broadcase the audio message to other users in the room
+                room.users.forEach(user => {
+                    if (user.connection.readyState === WebSocket.OPEN && user !== ws) {
+                        user.connection.send(JSON.stringify(audioMessage));
+                    }
+                });
+            }
+            else {
+                console.log(`Room not found`);
+            }
+        }
     })
 
     ws.on('close', () => {

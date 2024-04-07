@@ -22,7 +22,46 @@ const VoiceChatRoom = () => {
   const mediaRecorderRef = useRef(null);
   const recordedChunksRef = useRef([]);
 
+  const reader = new FileReader();
+
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      mediaRecorderRef.current = new MediaRecorder(stream);
+
+      mediaRecorderRef.current.addEventListener("dataavailable", (event) => {
+        if (event.data.size > 0) {
+          recordedChunksRef.current.push(event.data);
+        }
+      });
+
+      mediaRecorderRef.current.addEventListener("stop", () => {
+        const audioBlob = new Blob(recordedChunksRef.current, {
+          type: "audio/webm",
+        });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const newRecording = {
+          url: audioUrl,
+          blob: audioBlob,
+        };
+        setRecordings((prevRecordings) => [...prevRecordings, newRecording]);
+        recordedChunksRef.current = [];
+      });
+
+      mediaRecorderRef.current.start();
+      setIsRecording(true);
+    }
+    catch (error) {
+      console.error("Error starting recording: ", error);
+    }
+  }
+  
+    /*
   const startRecording = () => {
+    recordedChunksRef.current = [];
+    mediaRecorderRef.current = new MediaRecorder(stream);
+
     mediaRecorderRef.current = new MediaRecorder(myStream.current, {
       mimeType: 'audio/webm',
     });
@@ -48,12 +87,61 @@ const VoiceChatRoom = () => {
     
     mediaRecorderRef.current.start();
     setIsRecording(true);
-  };
+  };*/
   
   const stopRecording = () => {
     mediaRecorderRef.current.stop();
     setIsRecording(false);
+
+    // Create a new fileheaderto read this blob and convert to base 64
+    let reader =  new FileReader();
+    console.log(recordedChunksRef.current);
+    if (recordedChunksRef.current[0] instanceof Blob) {
+      reader.readAsDataURL(recordedChunksRef.current[0]);
+    } else {
+      console.error('The first recorded chunk is not a Blob.');
+    }
+    reader.onloadend = () => {
+      let base64data = reader.result;
+
+      // Send the base64 data to the server
+      const send_recording = {
+        event: "send-recording",
+        payload: {
+          id: roomID,
+          recording: base64data,
+          username: username,
+
+        }
+      }
+      ws.current.send(JSON.stringify(send_recording));
+    }
   };
+  reader.onerror = (error) => {
+    console.error('FileReader error: ', error);
+  };
+
+  function processRecording() {
+    if (recordedChunksRef.current.length > 0 && recordedChunksRef.current[0] instanceof Blob) {
+      const reader = new FileReader();
+  
+      reader.onloadend = () => {
+        let base64data = reader.result;
+        // Send the base64 data to the server...
+      };
+  
+      reader.onerror = (error) => {
+        console.error('FileReader error: ', error);
+      };
+  
+      reader.readAsDataURL(recordedChunksRef.current[0]);
+    } else {
+      console.error('The first recorded chunk is not a Blob or no recording has been started.');
+    }
+  }
+  
+  // Make sure to call the function where 'reader' is accessible
+  processRecording();
 
   useEffect(() => {
     ws.current = new WebSocket("ws://localhost:8000");
