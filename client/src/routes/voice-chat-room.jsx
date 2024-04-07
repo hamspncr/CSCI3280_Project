@@ -2,7 +2,7 @@ import Peer from "peerjs";
 import { useContext, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { UsernameContext } from "../App";
-import { audioToArrayBuffer, saveWave } from "../utils/utils";
+import { audioToArrayBuffer } from "../utils/utils";
 
 const VoiceChatRoom = () => {
   const { roomID } = useParams();
@@ -131,6 +131,7 @@ const VoiceChatRoom = () => {
       // eslint-disable-next-line react-hooks/exhaustive-deps
       Object.values(activeCalls.current).forEach((call) => call.close());
       activeCalls.current = {};
+      activeStreams.current = [];
 
       if (peer.current) {
         peer.current.destroy();
@@ -142,6 +143,43 @@ const VoiceChatRoom = () => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // saveWave in utils automatically downloads it, this removes that
+  const createWave = (framedata, channels, rate, intPCM = false) => {
+    const sample_width = 4; // decodeAudioData always gives floating point 32-bit samples
+    const data_chunk_size = framedata.byteLength;
+    const fmt_chunk_size = 16;
+    const audio_format = intPCM ? 1 : 3; // Pretty much never going to be integer PCM
+    const byterate = rate * channels * sample_width;
+    const block_align = channels * sample_width;
+
+    const header = new ArrayBuffer(44);
+    const view = new DataView(header);
+
+    // riff_chunk
+    view.setUint32(0, 0x52494646, false); // "RIFF"
+    view.setUint32(4, 36 + data_chunk_size, true);
+    view.setUint32(8, 0x57415645, false); // "WAVE"
+
+    // fmt_chunk
+    view.setUint32(12, 0x666d7420, false); // "fmt "
+    view.setUint32(16, fmt_chunk_size, true);
+    view.setUint16(20, audio_format, true);
+    view.setUint16(22, channels, true);
+    view.setUint32(24, rate, true);
+    view.setUint32(28, byterate, true);
+    view.setUint16(32, block_align, true);
+    view.setUint16(34, sample_width * 8, true);
+
+    // data_chunk
+    view.setUint32(36, 0x64617461, false); // "data"
+    view.setUint32(40, data_chunk_size, true);
+
+    const blob = new Blob([header, framedata], { type: "audio/wav" });
+    const url = URL.createObjectURL(blob);
+
+    return url;
+  };
 
   const handleMessage = (e) => {
     e.preventDefault();
@@ -194,20 +232,19 @@ const VoiceChatRoom = () => {
 
   const handleRecording = () => {
     if (!recording) {
-      const mediaStreamDestination = context.current.createMediaStreamDestination();
+      const mediaStreamDestination =
+        context.current.createMediaStreamDestination();
       activeStreams.current.forEach((stream) => {
-        const sourceToDest = context.current.createMediaStreamSource(stream)
-        sourceToDest.connect(mediaStreamDestination)
-      })
+        const sourceToDest = context.current.createMediaStreamSource(stream);
+        sourceToDest.connect(mediaStreamDestination);
+      });
 
       const myStreamSource = context.current.createMediaStreamSource(
         myStream.current
       );
       myStreamSource.connect(mediaStreamDestination);
-      
-      recorder.current = new MediaRecorder(
-        mediaStreamDestination.stream
-      );
+
+      recorder.current = new MediaRecorder(mediaStreamDestination.stream);
 
       const chunks = [];
 
@@ -221,7 +258,25 @@ const VoiceChatRoom = () => {
         const audioBuffer = await context.current.decodeAudioData(buf);
 
         const toSave = audioToArrayBuffer(audioBuffer);
-        saveWave(toSave, audioBuffer.numberOfChannels, audioBuffer.sampleRate);
+        const url = createWave(
+          toSave,
+          audioBuffer.numberOfChannels,
+          audioBuffer.sampleRate
+        );
+
+        const send_message = {
+          event: "send-message",
+          payload: {
+            id: roomID,
+            messageInfo: {
+              username: username,
+              type: "audio/wav",
+              content: url,
+            },
+          },
+        };
+
+        ws.current.send(JSON.stringify(send_message));
       };
 
       recorder.current.start();
@@ -290,11 +345,22 @@ const VoiceChatRoom = () => {
             <div className="mb-4">
               <h2 className="text-xl font-bold">Chat</h2>
               <ul className="mb-4 h-64 overflow-auto bg-gray-700 p-3">
-                {roomInfo.messages.map((message, i) => (
-                  <li key={i} className="border-b border-gray-500 py-2">
-                    {message.username}: {message.content}
-                  </li>
-                ))}
+                {roomInfo.messages.map((message, i) => {
+                  if (message.type === "text") {
+                    return (
+                      <li key={i} className="border-b border-gray-500 py-2">
+                        {message.username}: {message.content}
+                      </li>
+                    );
+                  } else if (message.type === "audio/wav") {
+                    return (
+                      <li key={i}>
+                        {message.username}{" "}
+                        <a className="text-blue-400 hover:text-blue-600 " href={message.content}>Recorded the chat, click here to download</a>
+                      </li>
+                    );
+                  }
+                })}
               </ul>
             </div>
             <form onSubmit={handleMessage} className="mb-4 flex">
