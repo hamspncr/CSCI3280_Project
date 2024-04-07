@@ -139,7 +139,7 @@ wss.on('connection', ws => {
             } else {
                 console.log(`Room not found`)
             }
-        // Very not done
+        // Legacy method of broadcasting audio, WebRTC performs way better and is actually P2P so we're using that
         } else if (event === 'audio') {
             const {id} = payload
             const room = rooms[id]
