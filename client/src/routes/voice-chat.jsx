@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { UsernameContext } from "../main";
+import { UsernameContext } from "../App";
 
 const VoiceChat = () => {
   const { username, setUsername } = useContext(UsernameContext);

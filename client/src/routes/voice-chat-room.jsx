@@ -1,147 +1,31 @@
 import Peer from "peerjs";
 import { useContext, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { UsernameContext } from "../main";
+import { UsernameContext } from "../App";
+import { audioToArrayBuffer, saveWave } from "../utils/utils";
 
 const VoiceChatRoom = () => {
   const { roomID } = useParams();
   const { username } = useContext(UsernameContext);
   const [loading, setLoading] = useState(true);
-  const [joined, setJoined] = useState(false);
   const [roomInfo, setRoomInfo] = useState(null);
+  const [recording, setRecording] = useState(false);
   const [message, setMessage] = useState("");
+  const [muted, setMuted] = useState(false);
+
   const navigate = useNavigate();
+
   const ws = useRef(null);
+  const joined = useRef(false);
   const peer = useRef(null);
   const myPeerId = useRef(null);
   const myStream = useRef(null);
   const activeCalls = useRef({});
 
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordings, setRecordings] = useState([]);
-  const mediaRecorderRef = useRef(null);
-  const recordedChunksRef = useRef([]);
-
-  const reader = new FileReader();
-
-  async function startRecording() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-      mediaRecorderRef.current = new MediaRecorder(stream);
-
-      mediaRecorderRef.current.addEventListener("dataavailable", (event) => {
-        if (event.data.size > 0) {
-          recordedChunksRef.current.push(event.data);
-        }
-      });
-
-      mediaRecorderRef.current.addEventListener("stop", () => {
-        const audioBlob = new Blob(recordedChunksRef.current, {
-          type: "audio/webm",
-        });
-        const audioUrl = URL.createObjectURL(audioBlob);
-        const newRecording = {
-          url: audioUrl,
-          blob: audioBlob,
-        };
-        setRecordings((prevRecordings) => [...prevRecordings, newRecording]);
-        recordedChunksRef.current = [];
-      });
-
-      mediaRecorderRef.current.start();
-      setIsRecording(true);
-    }
-    catch (error) {
-      console.error("Error starting recording: ", error);
-    }
-  }
-  
-    /*
-  const startRecording = () => {
-    recordedChunksRef.current = [];
-    mediaRecorderRef.current = new MediaRecorder(stream);
-
-    mediaRecorderRef.current = new MediaRecorder(myStream.current, {
-      mimeType: 'audio/webm',
-    });
-    
-    mediaRecorderRef.current.addEventListener('dataavailable', (event) => {
-      if (event.data.size > 0) {
-        recordedChunksRef.current.push(event.data);
-      }
-    });
-    
-    mediaRecorderRef.current.addEventListener('stop', () => {
-      const audioBlob = new Blob(recordedChunksRef.current, {
-        type: 'audio/webm',
-      });
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const newRecording = {
-        url: audioUrl,
-        blob: audioBlob,
-      };
-      setRecordings((prevRecordings) => [...prevRecordings, newRecording]);
-      recordedChunksRef.current = [];
-    });
-    
-    mediaRecorderRef.current.start();
-    setIsRecording(true);
-  };*/
-  
-  const stopRecording = () => {
-    mediaRecorderRef.current.stop();
-    setIsRecording(false);
-
-    // Create a new fileheaderto read this blob and convert to base 64
-    let reader =  new FileReader();
-    console.log(recordedChunksRef.current);
-    if (recordedChunksRef.current[0] instanceof Blob) {
-      reader.readAsDataURL(recordedChunksRef.current[0]);
-    } else {
-      console.error('The first recorded chunk is not a Blob.');
-    }
-    reader.onloadend = () => {
-      let base64data = reader.result;
-
-      // Send the base64 data to the server
-      const send_recording = {
-        event: "send-recording",
-        payload: {
-          id: roomID,
-          recording: base64data,
-          username: username,
-
-        }
-      }
-      ws.current.send(JSON.stringify(send_recording));
-    }
-  };
-  reader.onerror = (error) => {
-    console.error('FileReader error: ', error);
-  };
-
-  function processRecording() {
-    if (recordedChunksRef.current.length > 0 && recordedChunksRef.current[0] instanceof Blob) {
-      const reader = new FileReader();
-  
-      reader.onloadend = () => {
-        let base64data = reader.result;
-        // Send the base64 data to the server...
-      };
-  
-      reader.onerror = (error) => {
-        console.error('FileReader error: ', error);
-      };
-  
-      reader.readAsDataURL(recordedChunksRef.current[0]);
-    } else {
-      console.error('The first recorded chunk is not a Blob or no recording has been started.');
-    }
-  }
-  
-  // Make sure to call the function where 'reader' is accessible
-  processRecording();
+  const context = useRef(null);
+  const gain = useRef(null);
+  const activeStreams = useRef([]);
+  const recorder = useRef(null);
 
   useEffect(() => {
     ws.current = new WebSocket("ws://localhost:8000");
@@ -151,6 +35,11 @@ const VoiceChatRoom = () => {
         console.log("Something bad must've happened");
         navigate("/voice-chat");
       } else {
+        context.current = new AudioContext();
+        gain.current = context.current.createGain();
+        gain.current.gain.value = 0.02; // make this state later
+        gain.current.connect(context.current.destination);
+
         myStream.current = await navigator.mediaDevices.getUserMedia({
           audio: true,
         });
@@ -185,10 +74,14 @@ const VoiceChatRoom = () => {
           peer.current.on("call", (call) => {
             call.answer(myStream.current);
             call.on("stream", (remoteStream) => {
-              const incomingAudio = new Audio();
-              incomingAudio.volume = 1;
-              incomingAudio.srcObject = remoteStream;
-              incomingAudio.play();
+              console.log("Answering a call from a joined user");
+              activeCalls.current[call.peer] = call;
+              const remoteMediaStreamSource =
+                context.current.createMediaStreamSource(remoteStream);
+              remoteMediaStreamSource.connect(gain.current);
+              context.current.resume();
+
+              activeStreams.current.push(remoteStream);
             });
           });
         });
@@ -199,17 +92,20 @@ const VoiceChatRoom = () => {
       const { event, payload } = JSON.parse(data);
       if (event === "join-room") {
         setRoomInfo(payload);
-        if (!joined) {
-          setJoined(true);
+        if (!joined.current) {
+          joined.current = true;
           payload.users.forEach((user) => {
             if (user.peerId !== myPeerId.current) {
               const call = peer.current.call(user.peerId, myStream.current);
-              activeCalls.current[user.peerId] = call;
               call.on("stream", (remoteStream) => {
-                const incomingAudio = new Audio();
-                incomingAudio.volume = 0.02;
-                incomingAudio.srcObject = remoteStream;
-                incomingAudio.play();
+                console.log("Calling everybody in the room");
+                activeCalls.current[user.peerId] = call;
+                const remoteMediaStreamSource =
+                  context.current.createMediaStreamSource(remoteStream);
+                remoteMediaStreamSource.connect(gain.current);
+                context.current.resume();
+
+                activeStreams.current.push(remoteStream);
               });
             }
           });
@@ -218,7 +114,7 @@ const VoiceChatRoom = () => {
         setRoomInfo(payload);
       } else if (event === "leave-room") {
         const { newRoom, leaver } = payload;
-        console.log(leaver)
+        console.log(leaver);
         setRoomInfo(newRoom);
 
         activeCalls.current[leaver.peerId].close();
@@ -234,6 +130,7 @@ const VoiceChatRoom = () => {
     return () => {
       // eslint-disable-next-line react-hooks/exhaustive-deps
       Object.values(activeCalls.current).forEach((call) => call.close());
+      activeCalls.current = {};
 
       if (peer.current) {
         peer.current.destroy();
@@ -243,7 +140,7 @@ const VoiceChatRoom = () => {
       }
       ws.current.close();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleMessage = (e) => {
@@ -283,21 +180,57 @@ const VoiceChatRoom = () => {
   const handleMute = () => {
     if (myStream.current) {
       const enabled = myStream.current.getAudioTracks()[0].enabled;
-      const button = document.querySelector(".shut-up");
       if (enabled) {
+        setMuted(true);
         myStream.current.getAudioTracks()[0].enabled = false;
-        button.innerHTML = "speak";
-        alert("You have been muted");
       } else {
+        setMuted(false);
         myStream.current.getAudioTracks()[0].enabled = true;
-        button.innerHTML = "shh";
-        alert("You have been unmuted");
       }
     } else {
-      alert("No active stream found");
-      console.log("No active stream found, something went wrong")
+      console.log("No active stream found, something went wrong");
     }
-  }
+  };
+
+  const handleRecording = () => {
+    if (!recording) {
+      const mediaStreamDestination = context.current.createMediaStreamDestination();
+      activeStreams.current.forEach((stream) => {
+        const sourceToDest = context.current.createMediaStreamSource(stream)
+        sourceToDest.connect(mediaStreamDestination)
+      })
+
+      const myStreamSource = context.current.createMediaStreamSource(
+        myStream.current
+      );
+      myStreamSource.connect(mediaStreamDestination);
+      
+      recorder.current = new MediaRecorder(
+        mediaStreamDestination.stream
+      );
+
+      const chunks = [];
+
+      recorder.current.ondataavailable = (e) => {
+        chunks.push(e.data);
+      };
+
+      recorder.current.onstop = async () => {
+        const combined = new Blob(chunks);
+        const buf = await combined.arrayBuffer();
+        const audioBuffer = await context.current.decodeAudioData(buf);
+
+        const toSave = audioToArrayBuffer(audioBuffer);
+        saveWave(toSave, audioBuffer.numberOfChannels, audioBuffer.sampleRate);
+      };
+
+      recorder.current.start();
+      setRecording(true);
+    } else {
+      recorder.current.stop();
+      setRecording(false);
+    }
+  };
 
   return (
     <>
@@ -313,10 +246,6 @@ const VoiceChatRoom = () => {
         <div className="bg-gray-800 min-h-screen text-white p-4">
           Room not found
         </div>
-      ) : !joined ? (
-        <div className="bg-gray-800 min-h-screen text-white p-4">
-          Joining room
-        </div>
       ) : (
         <div className="bg-gray-800 min-h-screen text-white p-4">
           <button
@@ -329,10 +258,16 @@ const VoiceChatRoom = () => {
             <div className="mb-4">
               <h2 className="text-xl font-bold">Voice Controls</h2>
               <button
-                className="shut-up bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded"
+                className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded"
                 onClick={handleMute}
               >
-                shh
+                {!muted ? "Mute" : "Unmute"}
+              </button>
+              <button
+                className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded"
+                onClick={handleRecording}
+              >
+                {!recording ? "Start Recording" : "Stop Recording"}
               </button>
             </div>
           </div>
@@ -378,7 +313,7 @@ const VoiceChatRoom = () => {
               </button>
             </form>
           </div>
-          <div>
+          {/* <div>
             <h2 className="text-xl font-bold">Recordings</h2>
             {isRecording ? (
               <button
@@ -395,7 +330,7 @@ const VoiceChatRoom = () => {
                 Start Recording
               </button>
             )}
-            
+
             <ul>
               {recordings.map((recording, index) => (
                 <li key={index}>
@@ -403,7 +338,7 @@ const VoiceChatRoom = () => {
                 </li>
               ))}
             </ul>
-          </div>
+          </div> */}
         </div>
       )}
     </>
