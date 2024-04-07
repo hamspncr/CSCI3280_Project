@@ -111,16 +111,39 @@ const VoiceChatRoom = () => {
         }));
         roomInfoRef.current = {...roomInfoRef.current, messages: [...roomInfoRef.current.messages, payload]}
       } else if (event === "reaction") {
+        // Updating reactions on client side
         const currentRoomInfo = roomInfoRef.current
         const targetMessageId = payload.messageId
         const targetReaction = payload.reactionType
+        let newReactionCount = 0
         
         currentRoomInfo.messages.forEach(message => {
           if (message.id === targetMessageId) {
             message.reactions[targetReaction] += 1
             console.log(`Reaction for ${targetMessageId} of type ${targetReaction} is now ${message.reactions[targetReaction]}`)
+            newReactionCount = message.reactions[targetReaction]
           }
         })
+        
+        // Show visual changes on front-end
+        const reactionsContainer = document.querySelector(`#${targetMessageId} .reactions-container`)
+        if (targetReaction === "good") {
+          reactionsContainer.querySelector(".reaction-good").textContent = newReactionCount
+        } else if (targetReaction === "love") {
+          reactionsContainer.querySelector(".reaction-love").textContent = newReactionCount
+        } else if (targetReaction === "haha") {
+          reactionsContainer.querySelector(".reaction-haha").textContent = newReactionCount
+        } else if (targetReaction === "fire") {
+          reactionsContainer.querySelector(".reaction-fire").textContent = newReactionCount
+        } else if (targetReaction === "bad") {
+          reactionsContainer.querySelector(".reaction-bad").textContent = newReactionCount
+        } else {
+          console.log(`Invalid reaction type ${targetReaction}`)
+        }
+        
+        setRoomInfo(currentRoomInfo)
+        roomInfoRef.current = currentRoomInfo
+        console.log(roomInfoRef.current)
       }
     };
 
@@ -151,7 +174,7 @@ const VoiceChatRoom = () => {
           messageInfo: {
             username: username,
             type: "text",
-            id: Math.trunc(Math.random() * 100000000).toString(),  // Each message is assigned its own unique ID
+            id: "reaction-" + Math.trunc(Math.random() * 100000000).toString(),  // Each message is assigned its own unique ID
             reactions: {
               good: 0,
               love: 0,
@@ -240,15 +263,15 @@ const VoiceChatRoom = () => {
               <h2 className="text-xl font-bold">Chat</h2>
               <ul className="mb-4 h-64 overflow-auto bg-gray-700 p-3">
                 {roomInfo.messages.map((message, i) => (
-                  <li key={i} className="border-b border-gray-500 py-2">
+                  <li key={i} className="border-b border-gray-500 py-2" id={message.id}>
                     {message.username}: {message.content}
                     <br/>
-                    <span className="border-2 rounded-lg border-white inline-flex flex-auto gap-2">
-                      <button onClick={() => handleReaction(message.id, "good")}>👍 {message.reactions["good"] || 0}</button>
-                      <button onClick={() => handleReaction(message.id, "love")}>❤️ {message.reactions["love"] || 0}</button>
-                      <button onClick={() => handleReaction(message.id, "haha")}>😂 {message.reactions["haha"] || 0}</button>
-                      <button onClick={() => handleReaction(message.id, "fire")}>🔥 {message.reactions["fire"] || 0}</button>
-                      <button onClick={() => handleReaction(message.id, "bad")}>🖕 {message.reactions["bad"] || 0}</button>
+                    <span className="reactions-container border-2 rounded-lg border-white inline-flex flex-auto gap-2">
+                      <button onClick={() => handleReaction(message.id, "good")}>👍 <span className="reaction-good">{message.reactions["good"] || 0}</span></button>
+                      <button onClick={() => handleReaction(message.id, "love")}>❤️ <span className="reaction-love">{message.reactions["love"] || 0}</span></button>
+                      <button onClick={() => handleReaction(message.id, "haha")}>😂 <span className="reaction-haha">{message.reactions["haha"] || 0}</span></button>
+                      <button onClick={() => handleReaction(message.id, "fire")}>🔥 <span className="reaction-fire">{message.reactions["fire"] || 0}</span></button>
+                      <button onClick={() => handleReaction(message.id, "bad")}>🖕 <span className="reaction-bad">{message.reactions["bad"] || 0}</span></button>
                     </span>
                   </li>
                 ))}

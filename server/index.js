@@ -148,6 +148,18 @@ wss.on('connection', ws => {
                     event: "reaction",
                     payload: messageInfo
                 }
+                // Updating reactions on server
+                console.log(room.messages)
+                console.log(payload)
+                const allMessages = room.messages
+                const targetMessageId = payload.messageInfo.messageId
+                const targetReaction = payload.messageInfo.reactionType
+                allMessages.forEach(message => {
+                    if (message.id === targetMessageId) {
+                        message.reactions[targetReaction] += 1
+                        console.log(`Reaction for ${targetMessageId} of type ${targetReaction} is now ${message.reactions[targetReaction]}`)
+                    }
+                })
                 room.users.forEach(user => {
                     if (user.connection.readyState === WebSocket.OPEN) {
                         user.connection.send(JSON.stringify(response));
