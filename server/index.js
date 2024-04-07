@@ -142,7 +142,7 @@ wss.on('connection', ws => {
                             const API_KEY = process.env.GIPHY_API_KEY
                             const giphyResponse = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${API_KEY}&q=${query}&limit=1&offset=0&rating=g&lang=en`)
                             const giphyData = await giphyResponse.json()
-                            let giphyUrl = "https://giphy.com/embed/UHAYP0FxJOmFBuOiC2"
+                            let giphyUrl = "https://giphy.com/embed/UHAYP0FxJOmFBuOiC2" // Fallback gif if no gif is found
                             if (giphyData.data.length !== 0) {
                                 giphyUrl = giphyData.data[0].embed_url
                             }
@@ -159,7 +159,7 @@ wss.on('connection', ws => {
                             const API_KEY = process.env.YOUTUBE_API_KEY
                             const youtubeResponse = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q=${query}&type=video&key=${API_KEY}`)
                             const youtubeData = await youtubeResponse.json()
-                            let youtubeUrl = "https://www.youtube.com/embed/dQw4w9WgXcQ"
+                            let youtubeUrl = "https://www.youtube.com/embed/dQw4w9WgXcQ" // Fallback video if no video is found
                             if (youtubeData.items.length !== 0) {
                                 youtubeUrl = `https://www.youtube.com/embed/${youtubeData.items[0].id.videoId}`
                             }
