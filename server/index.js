@@ -139,6 +139,23 @@ wss.on('connection', ws => {
             } else {
                 console.log(`Room not found`)
             }
+        } else if (event === 'reaction') {
+            const {id, messageInfo} = payload
+            const room = rooms[id]
+
+            if (room) {
+                const response = {
+                    event: "reaction",
+                    payload: messageInfo
+                }
+                room.users.forEach(user => {
+                    if (user.connection.readyState === WebSocket.OPEN) {
+                        user.connection.send(JSON.stringify(response));
+                    }
+                })
+            } else {
+                console.log(`Room not found`)
+            }
         // Very not done
         } else if (event === 'audio') {
             const {id} = payload

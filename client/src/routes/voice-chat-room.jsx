@@ -14,6 +14,7 @@ const VoiceChatRoom = () => {
   const ws = useRef(null);
 
   const joined = useRef(false);
+  const roomInfoRef = useRef(roomInfo);
   const peer = useRef(null);
   const myPeerId = useRef(null);
   const myStream = useRef(null);
@@ -77,6 +78,7 @@ const VoiceChatRoom = () => {
       const { event, payload } = JSON.parse(data);
       if (event === "join-room") {
         setRoomInfo(payload);
+        roomInfoRef.current = payload;
         if (!joined.current) {
           joined.current = true;
           payload.users.forEach((user) => {
@@ -95,10 +97,11 @@ const VoiceChatRoom = () => {
         }
       } else if (event === "get-room") {
         setRoomInfo(payload);
+        roomInfoRef.current = payload;
       } else if (event === "leave-room") {
         const { newRoom, leaver } = payload;
         setRoomInfo(newRoom);
-
+        roomInfoRef.current = newRoom;
         activeCalls.current[leaver.peerId].close();
         delete activeCalls.current[leaver.peerId];
       } else if (event === "send-message") {
@@ -106,6 +109,18 @@ const VoiceChatRoom = () => {
           ...prev,
           messages: [...prev.messages, payload],
         }));
+        roomInfoRef.current = {...roomInfoRef.current, messages: [...roomInfoRef.current.messages, payload]}
+      } else if (event === "reaction") {
+        const currentRoomInfo = roomInfoRef.current
+        const targetMessageId = payload.messageId
+        const targetReaction = payload.reactionType
+        
+        currentRoomInfo.messages.forEach(message => {
+          if (message.id === targetMessageId) {
+            message.reactions[targetReaction] += 1
+            console.log(`Reaction for ${targetMessageId} of type ${targetReaction} is now ${message.reactions[targetReaction]}`)
+          }
+        })
       }
     };
 
@@ -136,6 +151,14 @@ const VoiceChatRoom = () => {
           messageInfo: {
             username: username,
             type: "text",
+            id: Math.trunc(Math.random() * 100000000).toString(),  // Each message is assigned its own unique ID
+            reactions: {
+              good: 0,
+              love: 0,
+              haha: 0,
+              fire: 0,
+              bad: 0,
+            },
             content: message,
           },
         },
@@ -145,6 +168,22 @@ const VoiceChatRoom = () => {
     }
     setMessage("");
   };
+
+  const handleReaction = (messageId, reactionType) => {
+    // console.log(`Reaction for ${messageId} of type ${reactionType}`)
+    const reaction = {
+      event: "reaction",
+      payload: {
+        id: roomID,
+        messageInfo : {
+          messageId: messageId,
+          reactionType: reactionType,
+        }
+      }
+    }
+
+    ws.current.send(JSON.stringify(reaction))
+  }
 
   const handleLeaveRoom = () => {
     const leave_room = {
@@ -203,6 +242,14 @@ const VoiceChatRoom = () => {
                 {roomInfo.messages.map((message, i) => (
                   <li key={i} className="border-b border-gray-500 py-2">
                     {message.username}: {message.content}
+                    <br/>
+                    <span className="border-2 rounded-lg border-white inline-flex flex-auto gap-2">
+                      <button onClick={() => handleReaction(message.id, "good")}>👍 {message.reactions["good"] || 0}</button>
+                      <button onClick={() => handleReaction(message.id, "love")}>❤️ {message.reactions["love"] || 0}</button>
+                      <button onClick={() => handleReaction(message.id, "haha")}>😂 {message.reactions["haha"] || 0}</button>
+                      <button onClick={() => handleReaction(message.id, "fire")}>🔥 {message.reactions["fire"] || 0}</button>
+                      <button onClick={() => handleReaction(message.id, "bad")}>🖕 {message.reactions["bad"] || 0}</button>
+                    </span>
                   </li>
                 ))}
               </ul>
