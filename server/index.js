@@ -140,9 +140,12 @@ wss.on('connection', ws => {
                             console.log("Giphy API called")
                             const query = messageInfo.content.substring(messageInfo.content.indexOf(' ') + 1)
                             const API_KEY = process.env.GIPHY_API_KEY
-                            const giphyResponse = await fetch(`https://api.giphy.com/v1/gifs/random?api_key=${API_KEY}&tag=${query}&limit=1&offset=0&rating=g&lang=en`)
+                            const giphyResponse = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${API_KEY}&q=${query}&limit=1&offset=0&rating=g&lang=en`)
                             const giphyData = await giphyResponse.json()
-                            const giphyUrl = giphyData.data.embed_url
+                            let giphyUrl = "https://giphy.com/embed/UHAYP0FxJOmFBuOiC2"
+                            if (giphyData.data.length !== 0) {
+                                giphyUrl = giphyData.data[0].embed_url
+                            }
                             const newMessageInfo = {
                                 ...messageInfo,
                                 content: `$$EMBED_IMG_${giphyUrl}`
