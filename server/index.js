@@ -212,4 +212,4 @@ wss.on('connection', ws => {
     })
 })
 
-server.listen(8000, process.env.HOST || "127.0.0.1")
+server.listen(8000, process.env.HOST || undefined)

@@ -29,7 +29,7 @@ const VoiceChatRoom = () => {
   const recorder = useRef(null);
 
   useEffect(() => {
-    const hostName = import.meta.env.VITE_HOST || "127.0.0.1"
+    const hostName = import.meta.env.VITE_HOST || "localhost"
     const wssUrl = "wss://" + hostName + ":8000"
     ws.current = new WebSocket(wssUrl);
     ws.current.onopen = async () => {
