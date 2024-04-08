@@ -144,20 +144,14 @@ wss.on('connection', ws => {
             const room = rooms[id]
 
             if (room) {
+                const {messageId, reactionType} = messageInfo
                 const response = {
                     event: "reaction",
                     payload: messageInfo
                 }
-                // Updating reactions on server
-                console.log(room.messages)
-                console.log(payload)
-                const allMessages = room.messages
-                const targetMessageId = payload.messageInfo.messageId
-                const targetReaction = payload.messageInfo.reactionType
-                allMessages.forEach(message => {
-                    if (message.id === targetMessageId) {
-                        message.reactions[targetReaction] += 1
-                        console.log(`Reaction for ${targetMessageId} of type ${targetReaction} is now ${message.reactions[targetReaction]}`)
+                room.messages.forEach(message => {
+                    if (message.messageId === messageId) {
+                        message.reactions[reactionType] += 1
                     }
                 })
                 room.users.forEach(user => {
@@ -168,8 +162,8 @@ wss.on('connection', ws => {
             } else {
                 console.log(`Room not found`)
             }
-        // Very not done
-        } else if (event === 'audio') {
+        // Legacy method of broadcasting audio, WebRTC performs way better and is actually P2P so we're using that
+        }  else if (event === 'audio') {
             const {id} = payload
             const room = rooms[id]
 
