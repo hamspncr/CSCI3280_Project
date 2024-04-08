@@ -139,8 +139,31 @@ wss.on('connection', ws => {
             } else {
                 console.log(`Room not found`)
             }
+        } else if (event === 'reaction') {
+            const {id, messageInfo} = payload
+            const room = rooms[id]
+
+            if (room) {
+                const {messageId, reactionType} = messageInfo
+                const response = {
+                    event: "reaction",
+                    payload: messageInfo
+                }
+                room.messages.forEach(message => {
+                    if (message.messageId === messageId) {
+                        message.reactions[reactionType] += 1
+                    }
+                })
+                room.users.forEach(user => {
+                    if (user.connection.readyState === WebSocket.OPEN) {
+                        user.connection.send(JSON.stringify(response));
+                    }
+                })
+            } else {
+                console.log(`Room not found`)
+            }
         // Legacy method of broadcasting audio, WebRTC performs way better and is actually P2P so we're using that
-        } else if (event === 'audio') {
+        }  else if (event === 'audio') {
             const {id} = payload
             const room = rooms[id]
 
