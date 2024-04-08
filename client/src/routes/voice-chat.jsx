@@ -10,7 +10,9 @@ const VoiceChat = () => {
   const ws = useRef(null);
 
   useEffect(() => {
-    ws.current = new WebSocket("ws://localhost:8000");
+    const hostName = import.meta.env.VITE_HOST || "127.0.0.1"
+    const wssUrl = "wss://" + hostName + ":8000"
+    ws.current = new WebSocket(wssUrl);
     ws.current.onopen = () => {
       setLoading(false);
 
