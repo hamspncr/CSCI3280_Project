@@ -1,10 +1,22 @@
-const WebSocket = require('ws')
-const crypto = require('crypto')
+const fs = require('fs');
+const https = require('https');
+const WebSocket = require('ws');
+const crypto = require('crypto');
 const { PeerServer } = require("peer");
 
-const peerServer = PeerServer({ port: 8001, path: "/peer-server" });
+const options = {
+    cert: fs.readFileSync("../voice-record-chat.crt"),
+    key: fs.readFileSync("../private.key"),
+}
 
-const wss = new WebSocket.Server({ port: 8000 })
+const peerServer = PeerServer({ port: 8001, path: "/peer-server", ssl: {
+    key: fs.readFileSync("../private.key"),
+    cert: fs.readFileSync("../voice-record-chat.crt"),
+}});
+
+const server = https.createServer(options)
+
+const wss = new WebSocket.Server({ server })
 
 const rooms = {
     "0b01c8f2-e484-41a4-932a-e1af9f959d0b": {
@@ -199,3 +211,5 @@ wss.on('connection', ws => {
         })
     })
 })
+
+server.listen(8000, process.env.HOST || undefined)

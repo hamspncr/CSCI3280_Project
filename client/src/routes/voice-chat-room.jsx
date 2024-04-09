@@ -29,7 +29,9 @@ const VoiceChatRoom = () => {
   const recorder = useRef(null);
 
   useEffect(() => {
-    ws.current = new WebSocket("ws://localhost:8000");
+    const hostName = import.meta.env.VITE_HOST || "localhost"
+    const wssUrl = "wss://" + hostName + ":8000"
+    ws.current = new WebSocket(wssUrl);
     ws.current.onopen = async () => {
       setLoading(false);
       if (!username) {
@@ -55,7 +57,7 @@ const VoiceChatRoom = () => {
         ws.current.send(JSON.stringify(get_room));
 
         peer.current = new Peer(undefined, {
-          host: "localhost",
+          host: "/",
           port: 8001,
           path: "/peer-server",
         });
