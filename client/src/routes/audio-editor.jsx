@@ -19,7 +19,7 @@ const AudioEditor = () => {
   const [range, setRange] = useState({ start: 0, end: 0 });
   const [paused, setPaused] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [audioLibrary, setAudioLibrary] = useState([]);
+  const [audioLibrary, setAudioLibrary] = useState({});
   const [loadedAudioData, setLoadedAudioData] = useState(null);
   const [volume, setVolume] = useState(0.02);
   const [transcribing, setTranscribing] = useState(false);
@@ -46,16 +46,19 @@ const AudioEditor = () => {
           frames,
           context.current
         );
-        setAudioLibrary((library) => [
+        setAudioLibrary((library) => ({
           ...library,
-          { id: crypto.randomUUID(), name: file.name, audioData: data },
-        ]);
+          [crypto.randomUUID()]: {
+            name: file.name,
+            audioData: data,
+          },
+        }));
       }
     }
   };
   const handleSelectedAudio = (e) => {
     const selected = e.target.value;
-    const selectedAudio = audioLibrary.find((data) => data.id === selected);
+    const selectedAudio = audioLibrary[selected];
     if (selectedAudio) {
       setLoadedAudioData(selectedAudio.audioData);
     } else {
@@ -126,14 +129,13 @@ const AudioEditor = () => {
 
         const toSave = audioToArrayBuffer(audioBuffer);
         saveWave(toSave, audioBuffer.numberOfChannels, audioBuffer.sampleRate);
-        setAudioLibrary((library) => [
+        setAudioLibrary((library) => ({
           ...library,
-          {
-            id: crypto.randomUUID(),
+          [crypto.randomUUID()]: {
             name: new Date().toLocaleString(),
             audioData: audioBuffer,
           },
-        ]);
+        }));
       };
 
       recorder.current.start();
@@ -160,14 +162,13 @@ const AudioEditor = () => {
         trimmedAudio.numberOfChannels,
         trimmedAudio.sampleRate
       );
-      setAudioLibrary((library) => [
+      setAudioLibrary((library) => ({
         ...library,
-        {
-          id: crypto.randomUUID(),
+        [crypto.randomUUID()]: {
           name: new Date().toLocaleString(),
           audioData: trimmedAudio,
         },
-      ]);
+      }));
     }
   };
 
@@ -210,11 +211,9 @@ const AudioEditor = () => {
           audioBuffer.numberOfChannels,
           audioBuffer.sampleRate
         );
-
-        setAudioLibrary((library) => [
+        setAudioLibrary((library) => ({
           ...library,
-          {
-            id: crypto.randomUUID(),
+          [crypto.randomUUID()]: {
             name: new Date().toLocaleString(),
             audioData: framesToAudioBuffer(
               audioBuffer.sampleRate,
@@ -224,7 +223,7 @@ const AudioEditor = () => {
               context.current
             ),
           },
-        ]);
+        }));
       };
 
       recorder.current.start();
@@ -267,7 +266,6 @@ const AudioEditor = () => {
         track.stop();
       }
       setTesting(false);
-      console.log(audioLibrary);
     }
   };
 
@@ -317,11 +315,14 @@ const AudioEditor = () => {
 
   const handleDelete = () => {
     if (loadedAudioData) {
-      const index = audioLibrary.findIndex(
-        (data) => data.audioData === loadedAudioData
+      const toDelete = Object.keys(audioLibrary).find(
+        (id) => audioLibrary[id].audioData === loadedAudioData
       );
-      setAudioLibrary((prev) => prev.splice(index, 1));
+      const updated = { ...audioLibrary };
+      delete updated[toDelete];
+      setAudioLibrary(updated);
       setLoadedAudioData(null);
+      setTranscript("");
     }
   };
 
@@ -355,8 +356,8 @@ const AudioEditor = () => {
               onChange={handleSelectedAudio}
               className="p-4 bg-gray-800 border border-gray-700 rounded-lg"
             >
-              {audioLibrary.map((data) => (
-                <option key={data.id} value={data.id}>
+              {Object.entries(audioLibrary).map(([id, data]) => (
+                <option key={id} value={id}>
                   {data.name}
                 </option>
               ))}
