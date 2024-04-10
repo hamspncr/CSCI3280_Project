@@ -53,7 +53,7 @@ Preface: your browser will not trust the site (after all, it is using a self-sig
 While in the client directory:
 
 ```console
-npm run build -- --host
+npm run preview -- --host
 ```
 
 While in the server directory:
