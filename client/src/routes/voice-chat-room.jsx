@@ -40,6 +40,8 @@ const VoiceChatRoom = () => {
         
         myStream.current = await navigator.mediaDevices.getUserMedia({
           audio: true,
+          noiseSuppression: true,
+          echoCancellation: true,
         });
 
         if (voiceChanger === "deep") {
