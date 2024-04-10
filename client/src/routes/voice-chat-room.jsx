@@ -2,6 +2,7 @@ import { useContext, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { UsernameContext } from "../App";
 import { audioToArrayBuffer } from "../utils/utils";
+import * as Tone from 'tone';
 
 const VoiceChatRoom = () => {
   const { roomID } = useParams();
@@ -37,38 +38,26 @@ const VoiceChatRoom = () => {
       } else {
         context.current = new AudioContext();
         
-        let pitchMultiplier = 1;
-        if (voiceChanger == "high-pitch") {
-          pitchMultiplier = 2;
-        } else if (voiceChanger == "low-pitch") {
-          pitchMultiplier = 0.5;
-        }
-        
-        const scriptProcessor = context.current.createScriptProcessor(16384, 1, 1);
-
-        scriptProcessor.onaudioprocess = function(event) {
-          const inputBuffer = event.inputBuffer;
-          const outputBuffer = event.outputBuffer;
-        
-          for (let channel = 0; channel < outputBuffer.numberOfChannels; channel++) {
-            const inputData = inputBuffer.getChannelData(channel);
-            const outputData = outputBuffer.getChannelData(channel);
-        
-            for (let sample = 0; sample < inputBuffer.length; sample++) {
-              outputData[sample] = inputData[sample * pitchMultiplier] || 0;
-            }
-          }
-        };
-
         myStream.current = await navigator.mediaDevices.getUserMedia({
           audio: true,
         });
-        
-        console.log(voiceChanger)
-        if (voiceChanger !== "normal") {
-          sourceRef.current = context.current.createMediaStreamSource(myStream.current);
-          sourceRef.current.connect(scriptProcessor);
-          scriptProcessor.connect(context.current.destination);
+
+        if (voiceChanger === "deep") {
+          sourceRef.current = new Tone.UserMedia();
+          await sourceRef.current.open(myStream.current);
+          const pitchShift = new Tone.PitchShift(-10).toDestination();
+          const chebyshev = new Tone.Chebyshev(10).toDestination();
+          sourceRef.current.connect(pitchShift).connect(chebyshev);
+        } else if (voiceChanger === "chipmunk") {
+          sourceRef.current = new Tone.UserMedia();
+          await sourceRef.current.open(myStream.current);
+          const pitchShift = new Tone.PitchShift(15).toDestination();
+          sourceRef.current.connect(pitchShift);
+        } else if (voiceChanger === "echo") {
+          sourceRef.current = new Tone.UserMedia();
+          await sourceRef.current.open(myStream.current);
+          const pingPong = new Tone.PingPongDelay("4n", 0.2).toDestination();
+          sourceRef.current.connect(pingPong);
         }
 
         const get_room = {

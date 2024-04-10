@@ -61,10 +61,12 @@ const VoiceChat = () => {
 
   const handleVoiceChanger = () => {
     if (voiceChanger === "normal") {
-      setVoiceChanger("high-pitch")
-    } else if (voiceChanger === "high-pitch") {
-      setVoiceChanger("low-pitch")
-    } else if (voiceChanger === "low-pitch") {
+      setVoiceChanger("deep")
+    } else if (voiceChanger === "deep") {
+      setVoiceChanger("chipmunk")
+    } else if (voiceChanger === "chipmunk") {
+      setVoiceChanger("echo")
+    } else if (voiceChanger === "echo") {
       setVoiceChanger("normal")
     }
   }
