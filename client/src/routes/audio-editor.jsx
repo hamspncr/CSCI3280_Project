@@ -11,6 +11,8 @@ import {
   trimAudioBuffer,
 } from "../utils/utils";
 
+// handle functions are self-explanatory
+
 const AudioEditor = () => {
   const [playing, setPlaying] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
@@ -31,9 +33,11 @@ const AudioEditor = () => {
   const testStream = useRef(null);
 
   useEffect(() => {
+    // In order for the audio library to persist, we use the IndexedDB API (part of JavaScript)
     const dbreq = indexedDB.open("audioLibrary", 1);
     context.current = new AudioContext();
 
+    // First time launching the app, so the db doesn't exist
     dbreq.onupgradeneeded = () => {
       const db = dbreq.result;
       db.createObjectStore("audioEntries", { keyPath: "id" });
@@ -48,6 +52,10 @@ const AudioEditor = () => {
       const requestStore = store.getAll();
 
       requestStore.onsuccess = () => {
+        // Updating the audioLibrary on app load, audioBuffer couldn't be saved to
+        // the IndexedDB directly, so the DB stores an ArrayBuffer of the frameData,
+        // and other metadata (sampleRate, etc.) to reconstruct the audioBuffer
+        // once loaded
         requestStore.result.forEach((entry) => {
           const audioBuffer = framesToAudioBuffer(
             entry.sampleRate,
@@ -70,12 +78,13 @@ const AudioEditor = () => {
         db.close();
       };
 
-      trans.oncomplete = () => {
+      trans.onerror = () => {
         db.close();
-      };
+      }
     };
   }, []);
 
+  // More of a helper function to update both the audioLibrary state and the IndexedDB
   const updateAudioLibrary = (id, name, audioBuffer) => {
     const dbreq = indexedDB.open("audioLibrary", 1);
 
@@ -85,8 +94,10 @@ const AudioEditor = () => {
       const trans = db.transaction(["audioEntries"], "readwrite");
       const store = trans.objectStore("audioEntries");
 
+      // The IndexedDB couldn't store the audioBuffer directly, so it's converted
+      // into an ArrayBuffer of uncompressed PCM sample data, and it's other
+      // information is stored so that the audioBuffer can be recreated once loaded
       const frames = audioToArrayBuffer(audioBuffer);
-
       const entry = {
         id: id,
         name: name,
@@ -115,6 +126,7 @@ const AudioEditor = () => {
     };
   };
 
+  // Helper function for removing audio from audioLibrary state and IndexedDB
   const deleteFromAudioLibrary = (id) => {
     const dbreq = indexedDB.open("audioLibrary", 1);
 
@@ -155,17 +167,11 @@ const AudioEditor = () => {
           frames,
           context.current
         );
-        // setAudioLibrary((library) => ({
-        //   ...library,
-        //   [crypto.randomUUID()]: {
-        //     name: file.name,
-        //     audioData: data,
-        //   },
-        // }));
         updateAudioLibrary(crypto.randomUUID(), file.name, data);
       }
     }
   };
+  
   const handleSelectedAudio = (e) => {
     const selected = e.target.value;
     const selectedAudio = audioLibrary[selected];
@@ -239,13 +245,6 @@ const AudioEditor = () => {
 
         const toSave = audioToArrayBuffer(audioBuffer);
         saveWave(toSave, audioBuffer.numberOfChannels, audioBuffer.sampleRate);
-        // setAudioLibrary((library) => ({
-        //   ...library,
-        //   [crypto.randomUUID()]: {
-        //     name: new Date().toLocaleString(),
-        //     audioData: audioBuffer,
-        //   },
-        // }));
         updateAudioLibrary(
           crypto.randomUUID(),
           new Date().toLocaleString(),
@@ -277,13 +276,6 @@ const AudioEditor = () => {
         trimmedAudio.numberOfChannels,
         trimmedAudio.sampleRate
       );
-      // setAudioLibrary((library) => ({
-      //   ...library,
-      //   [crypto.randomUUID()]: {
-      //     name: new Date().toLocaleString(),
-      //     audioData: trimmedAudio,
-      //   },
-      // }));
       updateAudioLibrary(
         crypto.randomUUID(),
         new Date().toLocaleString(),
@@ -331,19 +323,6 @@ const AudioEditor = () => {
           audioBuffer.numberOfChannels,
           audioBuffer.sampleRate
         );
-        // setAudioLibrary((library) => ({
-        //   ...library,
-        //   [crypto.randomUUID()]: {
-        //     name: new Date().toLocaleString(),
-        //     audioData: framesToAudioBuffer(
-        //       audioBuffer.sampleRate,
-        //       audioBuffer.numberOfChannels,
-        //       4,
-        //       overwritten,
-        //       context.current
-        //     ),
-        //   },
-        // }));
         updateAudioLibrary(
           crypto.randomUUID(),
           new Date().toLocaleString(),

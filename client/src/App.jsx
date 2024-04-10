@@ -7,6 +7,7 @@ import VoiceChatRoom from "./routes/voice-chat-room";
 
 export const UsernameContext = createContext(null);
 
+// The core of the app, handles routing and context is essentially global variables for every section of our app
 export const App = () => {
   const [username, setUsername] = useState("");
   const [userId, setUserId] = useState(crypto.randomUUID())

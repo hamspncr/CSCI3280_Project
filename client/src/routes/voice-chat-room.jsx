@@ -25,17 +25,21 @@ const VoiceChatRoom = () => {
   const recorder = useRef(null);
 
   useEffect(() => {
+    // If the environment variables are blank, then will be hosted locally
     const hostName = import.meta.env.VITE_HOST || "localhost";
     const wssUrl = "wss://" + hostName + ":8000";
     ws.current = new WebSocket(wssUrl);
     ws.current.onopen = async () => {
       setLoading(false);
       if (!username) {
+        // If the page reloads, the context disappears, and so we dont want users joining the room
         console.log("Something bad must've happened");
         navigate("/voice-chat");
       } else {
+        // Context important for recording the room
         context.current = new AudioContext();
 
+        // Our actual microphone input
         myStream.current = await navigator.mediaDevices.getUserMedia({
           audio: true,
         });
@@ -64,11 +68,19 @@ const VoiceChatRoom = () => {
     ws.current.onmessage = async ({ data }) => {
       const { event, payload } = JSON.parse(data);
       if (event === "join-room") {
+        // Server sends this event whenever you join a room successfully, or 
+        // if anybody else joins a room. To differentiate which event is which,
+        // the joined.current variable keeps track of whether we're in the room or not
+        // If it's null/false then we aren't in the room, which means this event
+        // must've been us joining. If true, then it must've been somebody else joining
         setRoomInfo(payload);
         roomInfoRef.current = payload;
         if (!joined.current) {
           joined.current = true;
           payload.users.forEach(async (user) => {
+            // When we join the call, we call all the users in the room
+            // We want to create RTCPeerConnection objects for every user that isn't us,
+            // so that we can initiate a WebRTC P2P connection
             if (user.userId !== userId) {
               peerConnectionObjects.current[user.userId] =
                 new RTCPeerConnection({
@@ -82,6 +94,9 @@ const VoiceChatRoom = () => {
                   ],
                 });
 
+              // We add our tracks (only 1 because 1 microphone input) to the 
+              // RTCPeerConnection object, so that the receiver can receiver
+              // can receive our input stream (once the connection has been established)
               myStream.current.getAudioTracks().forEach((track) => {
                 peerConnectionObjects.current[user.userId].addTrack(
                   track,
@@ -89,9 +104,12 @@ const VoiceChatRoom = () => {
                 );
               });
 
+              // We create a WebRTC offer, meaning we want to create a P2P WebRTC connection
+              // between our client and another, so we create it and send it to the server
               const offer = await peerConnectionObjects.current[
                 user.userId
               ].createOffer();
+              // We designate our information as the local one
               await peerConnectionObjects.current[
                 user.userId
               ].setLocalDescription(offer);
@@ -108,6 +126,9 @@ const VoiceChatRoom = () => {
 
               ws.current.send(JSON.stringify(send_offer));
 
+              // If our RTCPeerConnection receives an ice candidate (a route from our ip address
+              // to the browser tab specifically), then we want to send this ice candidate to the user we're 
+              // trying to connect with, so that they can find a route from their location to us
               peerConnectionObjects.current[user.userId].onicecandidate = (
                 e
               ) => {
@@ -124,6 +145,10 @@ const VoiceChatRoom = () => {
                   ws.current.send(JSON.stringify(send_ice_candidate));
                 }
               };
+
+              // Once our connection is established, when the callee puts their audio track from their input stream,
+              // then we want to receive this input stream and play the incoming audio, and also
+              // keep track of all incoming streams 
               peerConnectionObjects.current[user.userId].ontrack = (e) => {
                 const [remoteStream] = e.streams;
                 remoteStream.getAudioTracks().forEach((track) => {
@@ -140,6 +165,8 @@ const VoiceChatRoom = () => {
                 incomingAudio.play();
               };
 
+              // When the connection closes (they leave or close the tab), we'll remove their connection
+              // from our variable tracking connections
               peerConnectionObjects.current[
                 user.userId
               ].onconnectionstatechange = () => {
@@ -154,8 +181,11 @@ const VoiceChatRoom = () => {
           });
         }
       } else if (event === "get-room") {
+        // Obvious
         setRoomInfo(payload);
       } else if (event === "leave-room") {
+        // When somebody leaves or disconnects, we update the room information, and 
+        // remote their connection and stream
         const { newRoom, leaver } = payload;
         setRoomInfo(newRoom);
         roomInfoRef.current = newRoom;
@@ -163,6 +193,7 @@ const VoiceChatRoom = () => {
         delete peerConnectionObjects.current[leaver.userId];
         delete activeStreams.current[leaver.userId];
       } else if (event === "send-message") {
+        // Somebody sent a message/recorded audio
         setRoomInfo((prev) => ({
           ...prev,
           messages: [...prev.messages, payload],
@@ -172,6 +203,7 @@ const VoiceChatRoom = () => {
           messages: [...roomInfoRef.current.messages, payload],
         };
       } else if (event === "reaction") {
+        // Somebody reacted to a message
         const { messageId, reactionType } = payload;
         roomInfoRef.current.messages.forEach((message) => {
           if (message.messageId === messageId) {
@@ -184,6 +216,7 @@ const VoiceChatRoom = () => {
           messages: roomInfoRef.current.messages,
         }));
       } else if (event === "send-offer") {
+        // Somebody sent us a WebRTC offer, so we create our answer and send it to them
         const { senderId, receiverId, offer } = payload;
 
         peerConnectionObjects.current[senderId] = new RTCPeerConnection({
@@ -197,6 +230,7 @@ const VoiceChatRoom = () => {
           ],
         });
 
+        // Same as earlier
         myStream.current.getAudioTracks().forEach((track) => {
           peerConnectionObjects.current[senderId].addTrack(
             track,
@@ -204,6 +238,7 @@ const VoiceChatRoom = () => {
           );
         });
 
+        // Same as earlier
         peerConnectionObjects.current[senderId].ontrack = (e) => {
           const [remoteStream] = e.streams;
           remoteStream.getAudioTracks().forEach((track) => {
@@ -220,11 +255,15 @@ const VoiceChatRoom = () => {
           incomingAudio.play();
         };
 
+        // We need an RTCSessionDescription to designate the offerer's information as the
+        // remote information
         const remoteDesc = new RTCSessionDescription(offer);
         await peerConnectionObjects.current[senderId].setRemoteDescription(
           remoteDesc
         );
 
+        // We're creating our answer and designating it as our local information, and
+        // sending it to the offerer
         const answer = await peerConnectionObjects.current[
           senderId
         ].createAnswer();
@@ -244,6 +283,8 @@ const VoiceChatRoom = () => {
 
         ws.current.send(JSON.stringify(send_answer));
       } else if (event === "send-answer") {
+        // We received a WebRTC answer to our offer, and so we set that answer
+        // as the remote information
         const { senderId, answer } = payload;
 
         const remoteDesc = new RTCSessionDescription(answer);
@@ -251,8 +292,12 @@ const VoiceChatRoom = () => {
           remoteDesc
         );
       } else if (event === "send-ice-candidate") {
+        // We received ice candidates (again, route to the other user) and are adding it so that we can
+        // connect to them directly (again, a direct P2P connection)
         const { senderId, icecandidate } = payload;
 
+        // It is in a try-catch block because sometimes it just doesn't work and if it errors it 
+        // crashes the whole tab, unsure why
         try {
           await peerConnectionObjects.current[senderId].addIceCandidate(
             icecandidate
@@ -400,12 +445,10 @@ const VoiceChatRoom = () => {
 
   const handleRecording = () => {
     if (!recording) {
+      // This is where each stream (local and remote) is hooked up to, since the MediaRecorder can't record multiple
+      // MediaStreams at a time 
       const mediaStreamDestination =
         context.current.createMediaStreamDestination();
-      // activeStreams.current.forEach((stream) => {
-      //   const sourceToDest = context.current.createMediaStreamSource(stream);
-      //   sourceToDest.connect(mediaStreamDestination);
-      // });
 
       Object.values(activeStreams.current).forEach((stream) => {
         const sourceToDest = context.current.createMediaStreamSource(stream);
@@ -436,7 +479,7 @@ const VoiceChatRoom = () => {
           audioBuffer.numberOfChannels,
           audioBuffer.sampleRate
         );
-
+        // The file is made available to everybody by sending it as a message
         const send_message = {
           event: "send-message",
           payload: {
@@ -590,6 +633,8 @@ const VoiceChatRoom = () => {
                       </li>
                     );
                   } else if (message.type === "audio/wav") {
+                    // The message content is a data URL, which is essentially
+                    // a base64 encoded wave file
                     return (
                       <li key={message.messageId}>
                         {message.username}{" "}
