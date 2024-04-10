@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   audioToArrayBuffer,
   createWaveBlob,
@@ -30,6 +30,115 @@ const AudioEditor = () => {
   const gain = useRef(null);
   const testStream = useRef(null);
 
+  useEffect(() => {
+    const dbreq = indexedDB.open("audioLibrary", 1);
+    context.current = new AudioContext();
+
+    dbreq.onupgradeneeded = () => {
+      const db = dbreq.result;
+      db.createObjectStore("audioEntries", { keyPath: "id" });
+    };
+
+    dbreq.onsuccess = () => {
+      const db = dbreq.result;
+
+      const trans = db.transaction(["audioEntries"], "readonly");
+      const store = trans.objectStore("audioEntries");
+
+      const requestStore = store.getAll();
+
+      requestStore.onsuccess = () => {
+        requestStore.result.forEach((entry) => {
+          const audioBuffer = framesToAudioBuffer(
+            entry.sampleRate,
+            entry.numberOfChannels,
+            entry.sampleWidth,
+            entry.audioData,
+            context.current
+          );
+          setAudioLibrary((library) => ({
+            ...library,
+            [entry.id]: {
+              name: entry.name,
+              audioData: audioBuffer,
+            },
+          }));
+        });
+      };
+
+      trans.oncomplete = () => {
+        db.close();
+      };
+
+      trans.oncomplete = () => {
+        db.close();
+      };
+    };
+  }, []);
+
+  const updateAudioLibrary = (id, name, audioBuffer) => {
+    const dbreq = indexedDB.open("audioLibrary", 1);
+
+    dbreq.onsuccess = () => {
+      const db = dbreq.result;
+
+      const trans = db.transaction(["audioEntries"], "readwrite");
+      const store = trans.objectStore("audioEntries");
+
+      const frames = audioToArrayBuffer(audioBuffer);
+
+      const entry = {
+        id: id,
+        name: name,
+        audioData: frames,
+        sampleRate: audioBuffer.sampleRate,
+        numberOfChannels: audioBuffer.numberOfChannels,
+        sampleWidth: 4,
+      };
+
+      store.add(entry);
+
+      trans.oncomplete = () => {
+        db.close();
+        setAudioLibrary((library) => ({
+          ...library,
+          [id]: {
+            name: name,
+            audioData: audioBuffer,
+          },
+        }));
+      };
+
+      trans.onerror = () => {
+        db.close();
+      };
+    };
+  };
+
+  const deleteFromAudioLibrary = (id) => {
+    const dbreq = indexedDB.open("audioLibrary", 1);
+
+    dbreq.onsuccess = () => {
+      const db = dbreq.result;
+
+      const trans = db.transaction(["audioEntries"], "readwrite");
+      const store = trans.objectStore("audioEntries");
+
+      store.delete(id);
+
+      trans.oncomplete = () => {
+        db.close();
+        const updated = { ...audioLibrary };
+        delete updated[id];
+        setAudioLibrary(updated);
+      };
+
+      trans.onerror = () => {
+        db.close();
+      };
+    };
+  };
+
   const handleFile = async (e) => {
     context.current = new AudioContext();
     for (const file of e.target.files) {
@@ -46,13 +155,14 @@ const AudioEditor = () => {
           frames,
           context.current
         );
-        setAudioLibrary((library) => ({
-          ...library,
-          [crypto.randomUUID()]: {
-            name: file.name,
-            audioData: data,
-          },
-        }));
+        // setAudioLibrary((library) => ({
+        //   ...library,
+        //   [crypto.randomUUID()]: {
+        //     name: file.name,
+        //     audioData: data,
+        //   },
+        // }));
+        updateAudioLibrary(crypto.randomUUID(), file.name, data);
       }
     }
   };
@@ -129,13 +239,18 @@ const AudioEditor = () => {
 
         const toSave = audioToArrayBuffer(audioBuffer);
         saveWave(toSave, audioBuffer.numberOfChannels, audioBuffer.sampleRate);
-        setAudioLibrary((library) => ({
-          ...library,
-          [crypto.randomUUID()]: {
-            name: new Date().toLocaleString(),
-            audioData: audioBuffer,
-          },
-        }));
+        // setAudioLibrary((library) => ({
+        //   ...library,
+        //   [crypto.randomUUID()]: {
+        //     name: new Date().toLocaleString(),
+        //     audioData: audioBuffer,
+        //   },
+        // }));
+        updateAudioLibrary(
+          crypto.randomUUID(),
+          new Date().toLocaleString(),
+          audioBuffer
+        );
       };
 
       recorder.current.start();
@@ -162,13 +277,18 @@ const AudioEditor = () => {
         trimmedAudio.numberOfChannels,
         trimmedAudio.sampleRate
       );
-      setAudioLibrary((library) => ({
-        ...library,
-        [crypto.randomUUID()]: {
-          name: new Date().toLocaleString(),
-          audioData: trimmedAudio,
-        },
-      }));
+      // setAudioLibrary((library) => ({
+      //   ...library,
+      //   [crypto.randomUUID()]: {
+      //     name: new Date().toLocaleString(),
+      //     audioData: trimmedAudio,
+      //   },
+      // }));
+      updateAudioLibrary(
+        crypto.randomUUID(),
+        new Date().toLocaleString(),
+        trimmedAudio
+      );
     }
   };
 
@@ -211,19 +331,30 @@ const AudioEditor = () => {
           audioBuffer.numberOfChannels,
           audioBuffer.sampleRate
         );
-        setAudioLibrary((library) => ({
-          ...library,
-          [crypto.randomUUID()]: {
-            name: new Date().toLocaleString(),
-            audioData: framesToAudioBuffer(
-              audioBuffer.sampleRate,
-              audioBuffer.numberOfChannels,
-              4,
-              overwritten,
-              context.current
-            ),
-          },
-        }));
+        // setAudioLibrary((library) => ({
+        //   ...library,
+        //   [crypto.randomUUID()]: {
+        //     name: new Date().toLocaleString(),
+        //     audioData: framesToAudioBuffer(
+        //       audioBuffer.sampleRate,
+        //       audioBuffer.numberOfChannels,
+        //       4,
+        //       overwritten,
+        //       context.current
+        //     ),
+        //   },
+        // }));
+        updateAudioLibrary(
+          crypto.randomUUID(),
+          new Date().toLocaleString(),
+          framesToAudioBuffer(
+            audioBuffer.sampleRate,
+            audioBuffer.numberOfChannels,
+            4,
+            overwritten,
+            context.current
+          )
+        );
       };
 
       recorder.current.start();
@@ -318,9 +449,7 @@ const AudioEditor = () => {
       const toDelete = Object.keys(audioLibrary).find(
         (id) => audioLibrary[id].audioData === loadedAudioData
       );
-      const updated = { ...audioLibrary };
-      delete updated[toDelete];
-      setAudioLibrary(updated);
+      deleteFromAudioLibrary(toDelete);
       setLoadedAudioData(null);
       setTranscript("");
     }
@@ -374,9 +503,11 @@ const AudioEditor = () => {
               </button>
               <button
                 onClick={handleDelete}
-                disabled={!loadedAudioData}
+                disabled={playing || !loadedAudioData}
                 className={`bg-red-500 hover:bg-red-600 text-white px-8 py-4 my-2 rounded-lg ${
-                  !loadedAudioData ? "opacity-50 cursor-not-allowed" : ""
+                  playing || !loadedAudioData
+                    ? "opacity-50 cursor-not-allowed"
+                    : ""
                 }`}
               >
                 Remove file
