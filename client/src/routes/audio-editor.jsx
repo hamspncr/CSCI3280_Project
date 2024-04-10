@@ -1,11 +1,13 @@
 import { useRef, useState } from "react";
 import {
   audioToArrayBuffer,
+  createWaveBlob,
   framesToAudioBuffer,
   overwriteSection,
   parseFMT,
   readWave,
   saveWave,
+  speech2text,
   trimAudioBuffer,
 } from "../utils/utils";
 
@@ -20,6 +22,8 @@ const AudioEditor = () => {
   const [audioLibrary, setAudioLibrary] = useState([]);
   const [loadedAudioData, setLoadedAudioData] = useState(null);
   const [volume, setVolume] = useState(0.02);
+  const [transcribing, setTranscribing] = useState(false);
+  const [transcript, setTranscript] = useState("");
 
   const context = useRef(null);
   const recorder = useRef(null);
@@ -246,7 +250,7 @@ const AudioEditor = () => {
       gain.current = context.current.createGain();
       gain.current.gain.value = volume;
       gain.current.connect(context.current.destination);
-      
+
       const source = context.current.createMediaStreamSource(
         testStream.current
       );
@@ -287,6 +291,40 @@ const AudioEditor = () => {
     setRange({ ...range, end: e.target.value });
   };
 
+  const handleTranscript = async () => {
+    if (loadedAudioData && loadedAudioData.numberOfChannels === 1) {
+      setTranscribing(true);
+      const waveBlob = await createWaveBlob(
+        audioToArrayBuffer(loadedAudioData),
+        loadedAudioData.numberOfChannels,
+        loadedAudioData.sampleRate
+      );
+      const transcribed = await speech2text(await waveBlob.arrayBuffer());
+      setTranscript(transcribed);
+      setTranscribing(false);
+    }
+  };
+
+  const handleExport = () => {
+    if (loadedAudioData) {
+      saveWave(
+        audioToArrayBuffer(loadedAudioData),
+        loadedAudioData.numberOfChannels,
+        loadedAudioData.sampleRate
+      );
+    }
+  };
+
+  const handleDelete = () => {
+    if (loadedAudioData) {
+      const index = audioLibrary.findIndex(
+        (data) => data.audioData === loadedAudioData
+      );
+      setAudioLibrary((prev) => prev.splice(index, 1));
+      setLoadedAudioData(null);
+    }
+  };
+
   return (
     <>
       <div className="min-h-screen bg-gray-900 text-white p-8">
@@ -323,6 +361,38 @@ const AudioEditor = () => {
                 </option>
               ))}
             </select>
+            <div className="flex flex-col items-center">
+              <button
+                onClick={handleExport}
+                disabled={!loadedAudioData}
+                className={`bg-gray-500 hover:bg-gray-600 text-white px-8 py-4 my-2 rounded-lg ${
+                  !loadedAudioData ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+              >
+                Export file
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={!loadedAudioData}
+                className={`bg-red-500 hover:bg-red-600 text-white px-8 py-4 my-2 rounded-lg ${
+                  !loadedAudioData ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+              >
+                Remove file
+              </button>
+              <button
+                onClick={handleTranscript}
+                disabled={!loadedAudioData || transcribing}
+                className={`bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 my-2 rounded-lg ${
+                  !loadedAudioData || transcribing
+                    ? "opacity-50 cursor-not-allowed"
+                    : ""
+                }`}
+              >
+                Transcribe (only mono, may take a while)
+              </button>
+              Transcript of selected file: {transcript}
+            </div>
 
             <div className="flex flex-wrap items-center justify-center space-x-4">
               <button
