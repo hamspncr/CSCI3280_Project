@@ -17,13 +17,11 @@ const VoiceChatRoom = () => {
   const ws = useRef(null);
   const joined = useRef(false);
   const roomInfoRef = useRef(null);
-  //const peer = useRef(null);
   const myStream = useRef(null);
   const peerConnectionObjects = useRef({});
+  const activeStreams = useRef({});
 
   const context = useRef(null);
-  const gain = useRef(null);
-  const activeStreams = useRef({});
   const recorder = useRef(null);
 
   useEffect(() => {
@@ -37,9 +35,6 @@ const VoiceChatRoom = () => {
         navigate("/voice-chat");
       } else {
         context.current = new AudioContext();
-        gain.current = context.current.createGain();
-        gain.current.gain.value = 0.02; // make this state later
-        gain.current.connect(context.current.destination);
 
         myStream.current = await navigator.mediaDevices.getUserMedia({
           audio: true,
@@ -131,7 +126,6 @@ const VoiceChatRoom = () => {
               };
               peerConnectionObjects.current[user.userId].ontrack = (e) => {
                 const [remoteStream] = e.streams;
-                console.log(remoteStream);
                 remoteStream.getAudioTracks().forEach((track) => {
                   activeStreams.current[user.userId] = new MediaStream();
                   activeStreams.current[user.userId].addTrack(
@@ -212,7 +206,6 @@ const VoiceChatRoom = () => {
 
         peerConnectionObjects.current[senderId].ontrack = (e) => {
           const [remoteStream] = e.streams;
-          console.log(remoteStream);
           remoteStream.getAudioTracks().forEach((track) => {
             activeStreams.current[senderId] = new MediaStream();
             activeStreams.current[senderId].addTrack(
@@ -277,9 +270,6 @@ const VoiceChatRoom = () => {
       );
       activeStreams.current = {};
 
-      // if (peer.current) {
-      //   peer.current.destroy();
-      // }
       if (myStream.current) {
         myStream.current = null;
       }
