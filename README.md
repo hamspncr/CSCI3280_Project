@@ -17,6 +17,7 @@ While in the root directory:
 ```console
 openssl req -x509 -sha256 -nodes -days 365 -newkey rsa:2048 -keyout private.key -out voice-record-chat.crt
 ```
+Command reference: [https://www.youtube.com/watch?v=s2YxcPR_yhw](https://www.youtube.com/watch?v=s2YxcPR_yhw)
 And fill out the requirements. Their contents do not matter, they are just so that we can run HTTPS.
 
 ## Setting up environment variables
