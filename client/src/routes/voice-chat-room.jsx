@@ -13,6 +13,9 @@ const VoiceChatRoom = () => {
   const [message, setMessage] = useState("");
   const [muted, setMuted] = useState(false);
 
+  const [listening, setListening] = useState(false);
+  let [transcript, setTranscript] = useState("");
+
   const navigate = useNavigate();
 
   const ws = useRef(null);
@@ -27,6 +30,8 @@ const VoiceChatRoom = () => {
   const gain = useRef(null);
   const activeStreams = useRef({});
   const recorder = useRef(null);
+
+
 
   useEffect(() => {
     const hostName = import.meta.env.VITE_HOST || "localhost"
@@ -57,7 +62,7 @@ const VoiceChatRoom = () => {
         ws.current.send(JSON.stringify(get_room));
 
         peer.current = new Peer(undefined, {
-          host: "/",
+          host: "localhost",
           port: 8001,
           path: "/peer-server",
         });
@@ -87,7 +92,7 @@ const VoiceChatRoom = () => {
               incomingAudio.volume = 0.02;
               incomingAudio.srcObject = remoteStream;
               incomingAudio.play();
-
+              
               activeStreams.current[call.peer] = remoteStream;
               //activeStreams.current.push(remoteStream);
             });
@@ -364,6 +369,38 @@ const VoiceChatRoom = () => {
     }
   };
 
+
+  const handleSpeech2text = () =>{
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    if (!listening){
+      console.log(listening);
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.start();
+      recognition.onresult = (event) => {
+        transcript = event.results[0][0].transcript;
+        setTranscript(transcript);
+        console.log('Transcript', transcript);
+      }
+      recognition.onspeechend = () => {
+        console.log("Speech ended. Restarting recognition...");
+        handleSpeech2text();
+      }
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error: ', event.error);
+      }
+      setListening(true);
+      console.log(listening);
+    } else {
+      console.log("Finished");
+      recognition.stop();    
+      setListening(false);
+      console.log(listening);
+    }
+  };
+
   return (
     <>
       {!username ? (
@@ -403,173 +440,186 @@ const VoiceChatRoom = () => {
               </button>
             </div>
           </div>
-          <table className="table-auto w-full mb-4">
-            <thead>
-              <tr className="bg-gray-700">
-                <th className="px-4 py-2">Users</th>
-              </tr>
-            </thead>
-            <tbody>
-              {roomInfo.users &&
-                roomInfo.users.map((user, i) => (
-                  <tr key={i} className="bg-gray-600">
-                    <td className="border px-4 py-2">{user.username}</td>
+          <div className="flex flex-row">
+            <div className="w-3/4">
+              <table className="table-auto w-full mb-4">
+                <thead>
+                  <tr className="bg-gray-700">
+                    <th className="px-4 py-2">Users</th>
                   </tr>
-                ))}
-            </tbody>
-          </table>
-          <div>
-            <div className="mb-4">
-              <h2 className="text-xl font-bold">Chat</h2>
-              <ul className="mb-4 h-64 overflow-auto bg-gray-700 p-3">
-                {roomInfo.messages.map((message) => {
-                  if (message.type === "text") {
-                    return (
-                      <li
-                        key={message.messageId}
-                        className="border-b border-gray-500 py-2"
-                      >
-                        {message.username}: {message.content}
-                        <br />
-                        <span className="reactions-container border-2 rounded-lg border-white inline-flex flex-auto gap-2">
-                          <button
-                            onClick={() =>
-                              handleReaction(message.messageId, "good")
-                            }
-                          >
-                            👍{" "}
-                            <span className="reaction-good">
-                              {message.reactions["good"] || 0}
-                            </span>
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleReaction(message.messageId, "love")
-                            }
-                          >
-                            ❤️{" "}
-                            <span className="reaction-love">
-                              {message.reactions["love"] || 0}
-                            </span>
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleReaction(message.messageId, "haha")
-                            }
-                          >
-                            😂{" "}
-                            <span className="reaction-haha">
-                              {message.reactions["haha"] || 0}
-                            </span>
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleReaction(message.messageId, "fire")
-                            }
-                          >
-                            🔥{" "}
-                            <span className="reaction-fire">
-                              {message.reactions["fire"] || 0}
-                            </span>
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleReaction(message.messageId, "bad")
-                            }
-                          >
-                            🖕{" "}
-                            <span className="reaction-bad">
-                              {message.reactions["bad"] || 0}
-                            </span>
-                          </button>
-                        </span>
-                      </li>
-                    );
-                  } else if (message.type === "audio/wav") {
-                    return (
-                      <li key={message.messageId}>
-                        {message.username}{" "}
-                        <a
-                          className="text-blue-400 hover:text-blue-600 "
-                          href={message.content}
-                          download
+                </thead>
+                <tbody>
+                  {roomInfo.users &&
+                    roomInfo.users.map((user, i) => (
+                      <tr key={i} className="bg-gray-600">
+                        <td className="border px-4 py-2">{user.username}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+    
+              <div className="mb-4">
+                <h2 className="text-xl font-bold">Chat</h2>
+                <ul className="mb-4 h-64 overflow-auto bg-gray-700 p-3">
+                  {roomInfo.messages.map((message) => {
+                    if (message.type === "text") {
+                      return (
+                        <li
+                          key={message.messageId}
+                          className="border-b border-gray-500 py-2"
                         >
-                          Recorded the chat, click here to download
-                        </a>
-                        <br />
-                        <span className="reactions-container border-2 rounded-lg border-white inline-flex flex-auto gap-2">
-                          <button
-                            onClick={() =>
-                              handleReaction(message.messageId, "good")
-                            }
+                          {message.username}: {message.content}
+                          <br />
+                          <span className="reactions-container border-2 rounded-lg border-white inline-flex flex-auto gap-2">
+                            <button
+                              onClick={() =>
+                                handleReaction(message.messageId, "good")
+                              }
+                            >
+                              👍{" "}
+                              <span className="reaction-good">
+                                {message.reactions["good"] || 0}
+                              </span>
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleReaction(message.messageId, "love")
+                              }
+                            >
+                              ❤️{" "}
+                              <span className="reaction-love">
+                                {message.reactions["love"] || 0}
+                              </span>
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleReaction(message.messageId, "haha")
+                              }
+                            >
+                              😂{" "}
+                              <span className="reaction-haha">
+                                {message.reactions["haha"] || 0}
+                              </span>
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleReaction(message.messageId, "fire")
+                              }
+                            >
+                              🔥{" "}
+                              <span className="reaction-fire">
+                                {message.reactions["fire"] || 0}
+                              </span>
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleReaction(message.messageId, "bad")
+                              }
+                            >
+                              🖕{" "}
+                              <span className="reaction-bad">
+                                {message.reactions["bad"] || 0}
+                              </span>
+                            </button>
+                          </span>
+                        </li>
+                      );
+                    } else if (message.type === "audio/wav") {
+                      return (
+                        <li key={message.messageId}>
+                          {message.username}{" "}
+                          <a
+                            className="text-blue-400 hover:text-blue-600 "
+                            href={message.content}
+                            download
                           >
-                            👍{" "}
-                            <span className="reaction-good">
-                              {message.reactions["good"] || 0}
-                            </span>
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleReaction(message.messageId, "love")
-                            }
-                          >
-                            ❤️{" "}
-                            <span className="reaction-love">
-                              {message.reactions["love"] || 0}
-                            </span>
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleReaction(message.messageId, "haha")
-                            }
-                          >
-                            😂{" "}
-                            <span className="reaction-haha">
-                              {message.reactions["haha"] || 0}
-                            </span>
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleReaction(message.messageId, "fire")
-                            }
-                          >
-                            🔥{" "}
-                            <span className="reaction-fire">
-                              {message.reactions["fire"] || 0}
-                            </span>
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleReaction(message.messageId, "bad")
-                            }
-                          >
-                            🖕{" "}
-                            <span className="reaction-bad">
-                              {message.reactions["bad"] || 0}
-                            </span>
-                          </button>
-                        </span>
-                      </li>
-                    );
-                  }
-                })}
-              </ul>
+                            Recorded the chat, click here to download
+                          </a>
+                          <br />
+                          <span className="reactions-container border-2 rounded-lg border-white inline-flex flex-auto gap-2">
+                            <button
+                              onClick={() =>
+                                handleReaction(message.messageId, "good")
+                              }
+                            >
+                              👍{" "}
+                              <span className="reaction-good">
+                                {message.reactions["good"] || 0}
+                              </span>
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleReaction(message.messageId, "love")
+                              }
+                            >
+                              ❤️{" "}
+                              <span className="reaction-love">
+                                {message.reactions["love"] || 0}
+                              </span>
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleReaction(message.messageId, "haha")
+                              }
+                            >
+                              😂{" "}
+                              <span className="reaction-haha">
+                                {message.reactions["haha"] || 0}
+                              </span>
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleReaction(message.messageId, "fire")
+                              }
+                            >
+                              🔥{" "}
+                              <span className="reaction-fire">
+                                {message.reactions["fire"] || 0}
+                              </span>
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleReaction(message.messageId, "bad")
+                              }
+                            >
+                              🖕{" "}
+                              <span className="reaction-bad">
+                                {message.reactions["bad"] || 0}
+                              </span>
+                            </button>
+                          </span>
+                        </li>
+                      );
+                    }
+                  })}
+                </ul>
+              </div>
+              <form onSubmit={handleMessage} className="mb-4 flex">
+                <input
+                  className="w-full border text-sm rounded-lg p-2.5 bg-gray-700 border-gray-600 placeholder-gray-400"
+                  type="text"
+                  value={message}
+                  placeholder="Enter text"
+                  onChange={(e) => setMessage(e.target.value)}
+                />
+                <button
+                  type="submit"
+                  className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded ml-2"
+                >
+                  Send
+                </button>
+              </form>
             </div>
-            <form onSubmit={handleMessage} className="mb-4 flex">
-              <input
-                className="w-full border text-sm rounded-lg p-2.5 bg-gray-700 border-gray-600 placeholder-gray-400"
-                type="text"
-                value={message}
-                placeholder="Enter text"
-                onChange={(e) => setMessage(e.target.value)}
-              />
-              <button
-                type="submit"
-                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded ml-2"
+            <div  class="w-1/4 mb-4">
+              <p className="px-4 py-2 bg-gray-700">Speech To Text</p>
+              <button 
+                className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+                onClick={handleSpeech2text}
               >
-                Send
+                {!listening ? "Start Listening" : "Stop Listening"}
               </button>
-            </form>
+              <p className="bg-grey-700 overflow-auto"> {transcript} </p>
+            </div>
           </div>
         </div>
       )}
