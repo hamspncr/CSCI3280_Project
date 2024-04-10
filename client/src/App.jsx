@@ -10,8 +10,9 @@ export const UsernameContext = createContext(null);
 export const App = () => {
   const [username, setUsername] = useState("");
   const [userId, setUserId] = useState(crypto.randomUUID())
+  const [voiceChanger, setVoiceChanger] = useState("normal")
   return (
-    <UsernameContext.Provider value={{username, setUsername, userId, setUserId}}>
+    <UsernameContext.Provider value={{username, setUsername, userId, setUserId, voiceChanger, setVoiceChanger}}>
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Root />} />

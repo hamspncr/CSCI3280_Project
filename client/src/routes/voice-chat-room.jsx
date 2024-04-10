@@ -5,7 +5,7 @@ import { audioToArrayBuffer } from "../utils/utils";
 
 const VoiceChatRoom = () => {
   const { roomID } = useParams();
-  const { username, userId } = useContext(UsernameContext);
+  const { username, userId, voiceChanger } = useContext(UsernameContext);
   const [loading, setLoading] = useState(true);
   const [roomInfo, setRoomInfo] = useState(null);
   const [recording, setRecording] = useState(false);
@@ -20,6 +20,7 @@ const VoiceChatRoom = () => {
   const myStream = useRef(null);
   const peerConnectionObjects = useRef({});
   const activeStreams = useRef({});
+  const sourceRef = useRef(null);
 
   const context = useRef(null);
   const recorder = useRef(null);
@@ -35,10 +36,40 @@ const VoiceChatRoom = () => {
         navigate("/voice-chat");
       } else {
         context.current = new AudioContext();
+        
+        let pitchMultiplier = 1;
+        if (voiceChanger == "high-pitch") {
+          pitchMultiplier = 2;
+        } else if (voiceChanger == "low-pitch") {
+          pitchMultiplier = 0.5;
+        }
+        
+        const scriptProcessor = context.current.createScriptProcessor(16384, 1, 1);
+
+        scriptProcessor.onaudioprocess = function(event) {
+          const inputBuffer = event.inputBuffer;
+          const outputBuffer = event.outputBuffer;
+        
+          for (let channel = 0; channel < outputBuffer.numberOfChannels; channel++) {
+            const inputData = inputBuffer.getChannelData(channel);
+            const outputData = outputBuffer.getChannelData(channel);
+        
+            for (let sample = 0; sample < inputBuffer.length; sample++) {
+              outputData[sample] = inputData[sample * pitchMultiplier] || 0;
+            }
+          }
+        };
 
         myStream.current = await navigator.mediaDevices.getUserMedia({
           audio: true,
         });
+        
+        console.log(voiceChanger)
+        if (voiceChanger !== "normal") {
+          sourceRef.current = context.current.createMediaStreamSource(myStream.current);
+          sourceRef.current.connect(scriptProcessor);
+          scriptProcessor.connect(context.current.destination);
+        }
 
         const get_room = {
           event: "get-room",
@@ -271,8 +302,15 @@ const VoiceChatRoom = () => {
       activeStreams.current = {};
 
       if (myStream.current) {
+        myStream.current.getTracks().forEach(track => track.stop());
         myStream.current = null;
       }
+      
+      if (sourceRef.current) {
+        sourceRef.current.disconnect();
+        sourceRef.current = null;
+      }
+
       ws.current.close();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

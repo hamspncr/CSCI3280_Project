@@ -4,6 +4,7 @@ import { UsernameContext } from "../App";
 
 const VoiceChat = () => {
   const { username, setUsername } = useContext(UsernameContext);
+  const { voiceChanger, setVoiceChanger } = useContext(UsernameContext);
   const [loading, setLoading] = useState(true);
   const [rooms, setRooms] = useState(null);
   const [createRoomInfo, setCreateRoomInfo] = useState({ name: "" });
@@ -58,6 +59,16 @@ const VoiceChat = () => {
     ws.current.send(JSON.stringify(request_rooms));
   };
 
+  const handleVoiceChanger = () => {
+    if (voiceChanger === "normal") {
+      setVoiceChanger("high-pitch")
+    } else if (voiceChanger === "high-pitch") {
+      setVoiceChanger("low-pitch")
+    } else if (voiceChanger === "low-pitch") {
+      setVoiceChanger("normal")
+    }
+  }
+
   return (
     <>
       {loading ? (
@@ -66,13 +77,21 @@ const VoiceChat = () => {
         </div>
       ) : (
         <div className="bg-gray-800 min-h-screen text-white p-4">
-          <input
-            className="border text-sm rounded-lg p-2.5 bg-gray-700 border-gray-600 placeholder-gray-400"
-            type="text"
-            value={username}
-            placeholder="Enter display name:"
-            onChange={(e) => setUsername(e.target.value)}
-          />
+          <div>
+            <input
+              className="border text-sm rounded-lg p-2.5 bg-gray-700 border-gray-600 placeholder-gray-400"
+              type="text"
+              value={username}
+              placeholder="Enter display name:"
+              onChange={(e) => setUsername(e.target.value)}
+            />
+            <button
+              onClick={handleVoiceChanger}
+              className="bg-orange-500 hover:bg-orange-700 text-white font-bold py-1 px-2 rounded"
+            >
+              Voice: {voiceChanger}
+              </button>
+          </div>
           <hr />
           <h1>Create Room:</h1>
           <form onSubmit={handleCreateRoom}>
