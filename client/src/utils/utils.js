@@ -69,6 +69,54 @@ export const saveWave = (framedata, channels, rate, name, intPCM = false) => {
   link.click();
 };
 
+// This should've been saveWave but I'm a lazy cunt
+export const createWaveBlob = async (framedata, channels, rate, intPCM = false) => {
+  const sample_width = 4; // decodeAudioData always gives floating point 32-bit samples
+  const data_chunk_size = framedata.byteLength;
+  const fmt_chunk_size = 16;
+  const audio_format = intPCM ? 1 : 3; // Pretty much never going to be integer PCM
+  const byterate = rate * channels * sample_width;
+  const block_align = channels * sample_width;
+
+  const header = new ArrayBuffer(44);
+  const view = new DataView(header);
+
+  // riff_chunk
+  view.setUint32(0, 0x52494646, false); // "RIFF"
+  view.setUint32(4, 36 + data_chunk_size, true);
+  view.setUint32(8, 0x57415645, false); // "WAVE"
+
+  // fmt_chunk
+  view.setUint32(12, 0x666d7420, false); // "fmt "
+  view.setUint32(16, fmt_chunk_size, true);
+  view.setUint16(20, audio_format, true);
+  view.setUint16(22, channels, true);
+  view.setUint32(24, rate, true);
+  view.setUint32(28, byterate, true);
+  view.setUint16(32, block_align, true);
+  view.setUint16(34, sample_width * 8, true);
+
+  // data_chunk
+  view.setUint32(36, 0x64617461, false); // "data"
+  view.setUint32(40, data_chunk_size, true);
+
+  const blob = new Blob([header, framedata], { type: "audio/wav" });
+
+  return blob;
+};
+
+// cuz can't return from inside load event for some fucking reason
+export const readFileAsDataURL = (blob) => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const url = reader.result;
+      resolve(url);
+    };
+    reader.readAsDataURL(blob);
+  });
+};
+
 // Interprets the fmt_chunk, returns object for each logical section
 export const parseFMT = (fmt_chunk) => {
   const view = new DataView(fmt_chunk);
@@ -199,17 +247,22 @@ export const overwriteSection = async (original, replacement, start, end) => {
 // - Only mono
 export const speech2text = async (file) => {
   const key = import.meta.env.VITE_WIT_API;
-  const options = {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer " + key,
-      "Content-Type": "audio/wav",
-    },
-    body: file,
-  };
-  const res = await fetch("https://api.wit.ai/speech", options);
-  const textform = await res.text();
-  // Chunked response, delimited with \r
-  const chunks = textform.split("\r");
-  return JSON.parse(chunks[chunks.length - 1]).text;
+  if (!key) {
+    return "No API key found, please add as environment variable";
+  } else {
+    const options = {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + key,
+        "Content-Type": "audio/wav",
+      },
+      body: file,
+    };
+    const res = await fetch("https://api.wit.ai/speech", options);
+    const textform = await res.text();
+    console.log(textform)
+    // Chunked response, delimited with \r
+    const chunks = textform.split("\r");
+    return JSON.parse(chunks[chunks.length - 1]).text;
+  }
 };
