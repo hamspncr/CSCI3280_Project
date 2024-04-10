@@ -2,17 +2,11 @@ const fs = require('fs');
 const https = require('https');
 const WebSocket = require('ws');
 const crypto = require('crypto');
-const { PeerServer } = require("peer");
 
 const options = {
     cert: fs.readFileSync("../voice-record-chat.crt"),
     key: fs.readFileSync("../private.key"),
 }
-
-const peerServer = PeerServer({ port: 8001, path: "/peer-server", ssl: {
-    key: fs.readFileSync("../private.key"),
-    cert: fs.readFileSync("../voice-record-chat.crt"),
-}});
 
 const server = https.createServer(options)
 
@@ -78,13 +72,13 @@ wss.on('connection', ws => {
             })
             console.log(`Room created with id ${id}, named ${name}`)
         } else if (event === 'join-room') {
-            const {id, username, peerId} = payload
+            const {id, username, userId} = payload
             const room = rooms[id]
 
             const user_info = {
                 connection: ws,
                 username: username,
-                peerId: peerId
+                userId: userId
             }
             
             if (room) {
@@ -175,13 +169,55 @@ wss.on('connection', ws => {
                 console.log(`Room not found`)
             }
         // Legacy method of broadcasting audio, WebRTC performs way better and is actually P2P so we're using that
-        }  else if (event === 'audio') {
+        } else if (event === 'audio') {
             const {id} = payload
             const room = rooms[id]
 
             room.users.forEach(user => {
                 if (user.connection.readyState === WebSocket.OPEN && user !== ws) {
                     user.connection.send(JSON.stringify(payload));
+                }
+            })
+        } else if (event === "send-offer") {
+            const {id, receiverId} = payload
+            const room = rooms[id]
+
+            const response = {
+                event: "send-offer",
+                payload: payload
+            }
+
+            room.users.forEach(user => {
+                if (user.userId === receiverId) {
+                    user.connection.send(JSON.stringify(response));
+                }
+            })
+        } else if (event === "send-answer") {
+            const {id, receiverId} = payload
+            const room = rooms[id]
+
+            const response = {
+                event: "send-answer",
+                payload: payload
+            }
+
+            room.users.forEach(user => {
+                if (user.userId === receiverId) {
+                    user.connection.send(JSON.stringify(response));
+                }
+            })
+        } else if (event === "send-ice-candidate") {
+            const {id, receiverId} = payload
+            const room = rooms[id]
+
+            const response = {
+                event: "send-ice-candidate",
+                payload: payload
+            }
+
+            room.users.forEach(user => {
+                if (user.userId === receiverId) {
+                    user.connection.send(JSON.stringify(response));
                 }
             })
         }

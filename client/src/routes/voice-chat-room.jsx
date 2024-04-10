@@ -1,4 +1,3 @@
-import Peer from "peerjs";
 import { useContext, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { UsernameContext } from "../App";
@@ -6,7 +5,7 @@ import { audioToArrayBuffer } from "../utils/utils";
 
 const VoiceChatRoom = () => {
   const { roomID } = useParams();
-  const { username } = useContext(UsernameContext);
+  const { username, userId } = useContext(UsernameContext);
   const [loading, setLoading] = useState(true);
   const [roomInfo, setRoomInfo] = useState(null);
   const [recording, setRecording] = useState(false);
@@ -18,19 +17,16 @@ const VoiceChatRoom = () => {
   const ws = useRef(null);
   const joined = useRef(false);
   const roomInfoRef = useRef(null);
-  const peer = useRef(null);
-  const myPeerId = useRef(null);
   const myStream = useRef(null);
-  const activeCalls = useRef({});
+  const peerConnectionObjects = useRef({});
+  const activeStreams = useRef({});
 
   const context = useRef(null);
-  const gain = useRef(null);
-  const activeStreams = useRef({});
   const recorder = useRef(null);
 
   useEffect(() => {
-    const hostName = import.meta.env.VITE_HOST || "localhost"
-    const wssUrl = "wss://" + hostName + ":8000"
+    const hostName = import.meta.env.VITE_HOST || "localhost";
+    const wssUrl = "wss://" + hostName + ":8000";
     ws.current = new WebSocket(wssUrl);
     ws.current.onopen = async () => {
       setLoading(false);
@@ -39,9 +35,6 @@ const VoiceChatRoom = () => {
         navigate("/voice-chat");
       } else {
         context.current = new AudioContext();
-        gain.current = context.current.createGain();
-        gain.current.gain.value = 0.02; // make this state later
-        gain.current.connect(context.current.destination);
 
         myStream.current = await navigator.mediaDevices.getUserMedia({
           audio: true,
@@ -56,71 +49,107 @@ const VoiceChatRoom = () => {
 
         ws.current.send(JSON.stringify(get_room));
 
-        peer.current = new Peer(undefined, {
-          host: "/",
-          port: 8001,
-          path: "/peer-server",
-        });
-
-        peer.current.on("open", (id) => {
-          myPeerId.current = id;
-          const join_room = {
-            event: "join-room",
-            payload: {
-              id: roomID,
-              username: username,
-              peerId: id,
-            },
-          };
-          ws.current.send(JSON.stringify(join_room));
-
-          peer.current.on("call", (call) => {
-            call.answer(myStream.current);
-            call.on("stream", (remoteStream) => {
-              console.log("Answering a call from a joined user");
-              activeCalls.current[call.peer] = call;
-              // const remoteMediaStreamSource =
-              //   context.current.createMediaStreamSource(remoteStream);
-              // remoteMediaStreamSource.connect(gain.current);
-              // context.current.resume();
-              const incomingAudio = new Audio();
-              incomingAudio.volume = 0.02;
-              incomingAudio.srcObject = remoteStream;
-              incomingAudio.play();
-
-              activeStreams.current[call.peer] = remoteStream;
-              //activeStreams.current.push(remoteStream);
-            });
-          });
-        });
+        const join_room = {
+          event: "join-room",
+          payload: {
+            id: roomID,
+            username: username,
+            userId: userId,
+          },
+        };
+        ws.current.send(JSON.stringify(join_room));
       }
     };
 
-    ws.current.onmessage = ({ data }) => {
+    ws.current.onmessage = async ({ data }) => {
       const { event, payload } = JSON.parse(data);
       if (event === "join-room") {
         setRoomInfo(payload);
         roomInfoRef.current = payload;
         if (!joined.current) {
           joined.current = true;
-          payload.users.forEach((user) => {
-            if (user.peerId !== myPeerId.current) {
-              const call = peer.current.call(user.peerId, myStream.current);
-              call.on("stream", (remoteStream) => {
-                console.log("Calling everybody in the room");
-                activeCalls.current[user.peerId] = call;
-                // const remoteMediaStreamSource =
-                //   context.current.createMediaStreamSource(remoteStream);
-                // remoteMediaStreamSource.connect(gain.current);
-                // context.current.resume();
+          payload.users.forEach(async (user) => {
+            if (user.userId !== userId) {
+              peerConnectionObjects.current[user.userId] =
+                new RTCPeerConnection({
+                  iceServers: [
+                    {
+                      urls: [
+                        "stun:stun.l.google.com:19302",
+                        "stun:stun1.l.google.com:19302",
+                      ],
+                    },
+                  ],
+                });
+
+              myStream.current.getAudioTracks().forEach((track) => {
+                peerConnectionObjects.current[user.userId].addTrack(
+                  track,
+                  myStream.current
+                );
+              });
+
+              const offer = await peerConnectionObjects.current[
+                user.userId
+              ].createOffer();
+              await peerConnectionObjects.current[
+                user.userId
+              ].setLocalDescription(offer);
+
+              const send_offer = {
+                event: "send-offer",
+                payload: {
+                  id: roomID,
+                  senderId: userId,
+                  receiverId: user.userId,
+                  offer: offer,
+                },
+              };
+
+              ws.current.send(JSON.stringify(send_offer));
+
+              peerConnectionObjects.current[user.userId].onicecandidate = (
+                e
+              ) => {
+                if (e.candidate) {
+                  const send_ice_candidate = {
+                    event: "send-ice-candidate",
+                    payload: {
+                      id: roomID,
+                      senderId: userId,
+                      receiverId: user.userId,
+                      icecandidate: e.candidate,
+                    },
+                  };
+                  ws.current.send(JSON.stringify(send_ice_candidate));
+                }
+              };
+              peerConnectionObjects.current[user.userId].ontrack = (e) => {
+                const [remoteStream] = e.streams;
+                remoteStream.getAudioTracks().forEach((track) => {
+                  activeStreams.current[user.userId] = new MediaStream();
+                  activeStreams.current[user.userId].addTrack(
+                    track,
+                    activeStreams.current[user.userId]
+                  );
+                });
+
                 const incomingAudio = new Audio();
-                incomingAudio.volume = 0.02;
+                incomingAudio.volume = 0.05; // haha
                 incomingAudio.srcObject = remoteStream;
                 incomingAudio.play();
+              };
 
-                activeStreams.current[user.peerId] = remoteStream;
-                //activeStreams.current.push(remoteStream);
-              });
+              peerConnectionObjects.current[
+                user.userId
+              ].onconnectionstatechange = () => {
+                if (
+                  peerConnectionObjects.current[user.userId].connectionState ===
+                  "closed"
+                ) {
+                  delete peerConnectionObjects.current[user.userId];
+                }
+              };
             }
           });
         }
@@ -130,9 +159,9 @@ const VoiceChatRoom = () => {
         const { newRoom, leaver } = payload;
         setRoomInfo(newRoom);
         roomInfoRef.current = newRoom;
-        activeCalls.current[leaver.peerId].close();
-        delete activeCalls.current[leaver.peerId];
-        delete activeStreams.current[leaver.peerId];
+        peerConnectionObjects.current[leaver.userId].close();
+        delete peerConnectionObjects.current[leaver.userId];
+        delete activeStreams.current[leaver.userId];
       } else if (event === "send-message") {
         setRoomInfo((prev) => ({
           ...prev,
@@ -154,18 +183,93 @@ const VoiceChatRoom = () => {
           ...prev,
           messages: roomInfoRef.current.messages,
         }));
+      } else if (event === "send-offer") {
+        const { senderId, receiverId, offer } = payload;
+
+        peerConnectionObjects.current[senderId] = new RTCPeerConnection({
+          iceServers: [
+            {
+              urls: [
+                "stun:stun.l.google.com:19302",
+                "stun:stun1.l.google.com:19302",
+              ],
+            },
+          ],
+        });
+
+        myStream.current.getAudioTracks().forEach((track) => {
+          peerConnectionObjects.current[senderId].addTrack(
+            track,
+            myStream.current
+          );
+        });
+
+        peerConnectionObjects.current[senderId].ontrack = (e) => {
+          const [remoteStream] = e.streams;
+          remoteStream.getAudioTracks().forEach((track) => {
+            activeStreams.current[senderId] = new MediaStream();
+            activeStreams.current[senderId].addTrack(
+              track,
+              activeStreams.current[senderId]
+            );
+          });
+
+          const incomingAudio = new Audio();
+          incomingAudio.volume = 0.05; // haha
+          incomingAudio.srcObject = remoteStream;
+          incomingAudio.play();
+        };
+
+        const remoteDesc = new RTCSessionDescription(offer);
+        await peerConnectionObjects.current[senderId].setRemoteDescription(
+          remoteDesc
+        );
+
+        const answer = await peerConnectionObjects.current[
+          senderId
+        ].createAnswer();
+        await peerConnectionObjects.current[senderId].setLocalDescription(
+          answer
+        );
+
+        const send_answer = {
+          event: "send-answer",
+          payload: {
+            id: roomID,
+            senderId: receiverId,
+            receiverId: senderId,
+            answer: answer,
+          },
+        };
+
+        ws.current.send(JSON.stringify(send_answer));
+      } else if (event === "send-answer") {
+        const { senderId, answer } = payload;
+
+        const remoteDesc = new RTCSessionDescription(answer);
+        await peerConnectionObjects.current[senderId].setRemoteDescription(
+          remoteDesc
+        );
+      } else if (event === "send-ice-candidate") {
+        const { senderId, icecandidate } = payload;
+
+        try {
+          await peerConnectionObjects.current[senderId].addIceCandidate(
+            icecandidate
+          );
+        } catch (err) {
+          console.log(err);
+        }
       }
     };
 
     return () => {
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      Object.values(activeCalls.current).forEach((call) => call.close());
-      activeCalls.current = {};
+      Object.values(peerConnectionObjects.current).forEach((conn) =>
+        conn.close()
+      );
       activeStreams.current = {};
 
-      if (peer.current) {
-        peer.current.destroy();
-      }
       if (myStream.current) {
         myStream.current = null;
       }
