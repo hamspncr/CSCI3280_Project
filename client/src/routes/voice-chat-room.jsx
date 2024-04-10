@@ -31,8 +31,6 @@ const VoiceChatRoom = () => {
   const activeStreams = useRef({});
   const recorder = useRef(null);
 
-
-
   useEffect(() => {
     const hostName = import.meta.env.VITE_HOST || "localhost"
     const wssUrl = "wss://" + hostName + ":8000"
