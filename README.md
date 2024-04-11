@@ -24,6 +24,15 @@ Command reference: [https://www.youtube.com/watch?v=s2YxcPR_yhw](https://www.you
 
 And fill out the requirements. Enter "HK" for the first, and enter anything to the rest (can't be empty). Their contents do not matter, they are just so that we can run HTTPS.
 
+Your directory should now look something like this:
+│   .gitignore
+│   private.key
+│   README.md
+│   voice-record-chat.crt
+│
+├───client/
+└───server/
+
 ## Setting up environment variables
 
 In each directory, clone .env and name the clone .env.local. In the client directory, paste your private ip (v4) into `VITE_HOST`. In the server directory, paste it into `HOST`. MAKE SURE you do not put quotes. It should look like:
