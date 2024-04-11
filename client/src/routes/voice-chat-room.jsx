@@ -21,7 +21,9 @@ const VoiceChatRoom = () => {
   const myStream = useRef(null);
   const peerConnectionObjects = useRef({});
   const activeStreams = useRef({});
-  const sourceRef = useRef(null);
+  const userMediaRef = useRef(null);
+  const mediaStreamRef = useRef(null);
+  const destNodeRef = useRef(null);
 
   const context = useRef(null);
   const recorder = useRef(null);
@@ -38,28 +40,41 @@ const VoiceChatRoom = () => {
       } else {
         context.current = new AudioContext();
         
+        /*
         myStream.current = await navigator.mediaDevices.getUserMedia({
           audio: true,
           noiseSuppression: true,
           echoCancellation: true,
         });
+        */
 
-        if (voiceChanger === "deep") {
-          sourceRef.current = new Tone.UserMedia();
-          await sourceRef.current.open(myStream.current);
-          const pitchShift = new Tone.PitchShift(-10).toDestination();
-          const chebyshev = new Tone.Chebyshev(10).toDestination();
-          sourceRef.current.connect(pitchShift).connect(chebyshev);
-        } else if (voiceChanger === "chipmunk") {
-          sourceRef.current = new Tone.UserMedia();
-          await sourceRef.current.open(myStream.current);
-          const pitchShift = new Tone.PitchShift(15).toDestination();
-          sourceRef.current.connect(pitchShift);
-        } else if (voiceChanger === "echo") {
-          sourceRef.current = new Tone.UserMedia();
-          await sourceRef.current.open(myStream.current);
-          const pingPong = new Tone.PingPongDelay("4n", 0.2).toDestination();
-          sourceRef.current.connect(pingPong);
+        userMediaRef.current = new Tone.UserMedia();
+        await userMediaRef.current.open();
+
+        destNodeRef.current = Tone.context.createMediaStreamDestination();
+
+        if (voiceChanger !== "normal") {
+          if (voiceChanger === "deep") {
+            const pitchShift = new Tone.PitchShift(-10);
+            userMediaRef.current.connect(pitchShift)
+            pitchShift.connect(destNodeRef.current);
+            const chebyshev = new Tone.Chebyshev(10);
+            userMediaRef.current.connect(chebyshev)
+            chebyshev.connect(destNodeRef.current);
+          } else if (voiceChanger === "chipmunk") {
+            const pitchShift = new Tone.PitchShift(15);
+            userMediaRef.current.connect(pitchShift)
+            pitchShift.connect(destNodeRef.current);
+          } else if (voiceChanger === "echo") {
+            const pingPong = new Tone.PingPongDelay("4n", 0.2);
+            userMediaRef.current.connect(pingPong)
+            pingPong.connect(destNodeRef.current);
+          }
+
+          mediaStreamRef.current = destNodeRef.current._nativeAudioNode.stream;
+        }
+        else {
+          mediaStreamRef.current = userMediaRef.current._stream;
         }
 
         const get_room = {
@@ -104,11 +119,19 @@ const VoiceChatRoom = () => {
                   ],
                 });
 
+              /*
               myStream.current.getAudioTracks().forEach((track) => {
                 peerConnectionObjects.current[user.userId].addTrack(
                   track,
                   myStream.current
                 );
+              });
+              */
+
+              mediaStreamRef.current.getAudioTracks().forEach(track => {
+                peerConnectionObjects.current[user.userId].addTrack(
+                  track,
+                  mediaStreamRef.current);
               });
 
               const offer = await peerConnectionObjects.current[
@@ -219,10 +242,19 @@ const VoiceChatRoom = () => {
           ],
         });
 
+        /*
         myStream.current.getAudioTracks().forEach((track) => {
           peerConnectionObjects.current[senderId].addTrack(
             track,
             myStream.current
+          );
+        });
+        */
+
+        mediaStreamRef.current.getAudioTracks().forEach((track) => {
+          peerConnectionObjects.current[senderId].addTrack(
+            track,
+            mediaStreamRef.current
           );
         });
 
@@ -292,14 +324,24 @@ const VoiceChatRoom = () => {
       );
       activeStreams.current = {};
 
+      /*
       if (myStream.current) {
         myStream.current.getTracks().forEach(track => track.stop());
         myStream.current = null;
       }
-      
-      if (sourceRef.current) {
-        sourceRef.current.disconnect();
-        sourceRef.current = null;
+      */
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach(track => track.stop());
+        mediaStreamRef.current = null;
+      }
+
+      if (destNodeRef.current) {
+        destNodeRef.current = null;
+      }
+
+      if (userMediaRef.current) {
+        userMediaRef.current.close()
+        userMediaRef.current = null;
       }
 
       ws.current.close();
@@ -413,14 +455,14 @@ const VoiceChatRoom = () => {
   };
 
   const handleMute = () => {
-    if (myStream.current) {
-      const enabled = myStream.current.getAudioTracks()[0].enabled;
+    if (mediaStreamRef.current) {
+      const enabled = mediaStreamRef.current.getAudioTracks()[0].enabled;
       if (enabled) {
         setMuted(true);
-        myStream.current.getAudioTracks()[0].enabled = false;
+        mediaStreamRef.current.getAudioTracks()[0].enabled = false;
       } else {
         setMuted(false);
-        myStream.current.getAudioTracks()[0].enabled = true;
+        mediaStreamRef.current.getAudioTracks()[0].enabled = true;
       }
     } else {
       console.log("No active stream found, something went wrong");
@@ -431,10 +473,6 @@ const VoiceChatRoom = () => {
     if (!recording) {
       const mediaStreamDestination =
         context.current.createMediaStreamDestination();
-      // activeStreams.current.forEach((stream) => {
-      //   const sourceToDest = context.current.createMediaStreamSource(stream);
-      //   sourceToDest.connect(mediaStreamDestination);
-      // });
 
       Object.values(activeStreams.current).forEach((stream) => {
         const sourceToDest = context.current.createMediaStreamSource(stream);
@@ -442,7 +480,7 @@ const VoiceChatRoom = () => {
       });
 
       const myStreamSource = context.current.createMediaStreamSource(
-        myStream.current
+        mediaStreamRef.current
       );
       myStreamSource.connect(mediaStreamDestination);
 
