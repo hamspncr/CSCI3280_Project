@@ -1,8 +1,8 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import * as Tone from 'tone';
 import { UsernameContext } from "../App";
 import { audioToArrayBuffer } from "../utils/utils";
-import * as Tone from 'tone';
 
 const VoiceChatRoom = () => {
   const { roomID } = useParams();
@@ -18,7 +18,7 @@ const VoiceChatRoom = () => {
   const ws = useRef(null);
   const joined = useRef(false);
   const roomInfoRef = useRef(null);
-  const myStream = useRef(null);
+  //const myStream = useRef(null);
   const peerConnectionObjects = useRef({});
   const activeStreams = useRef({});
   const userMediaRef = useRef(null);
@@ -55,14 +55,14 @@ const VoiceChatRoom = () => {
 
         if (voiceChanger !== "normal") {
           if (voiceChanger === "deep") {
-            const pitchShift = new Tone.PitchShift(-10);
+            const pitchShift = new Tone.PitchShift(-2);
             userMediaRef.current.connect(pitchShift)
             pitchShift.connect(destNodeRef.current);
-            const chebyshev = new Tone.Chebyshev(10);
+            const chebyshev = new Tone.Chebyshev(2);
             userMediaRef.current.connect(chebyshev)
             chebyshev.connect(destNodeRef.current);
           } else if (voiceChanger === "chipmunk") {
-            const pitchShift = new Tone.PitchShift(15);
+            const pitchShift = new Tone.PitchShift(5);
             userMediaRef.current.connect(pitchShift)
             pitchShift.connect(destNodeRef.current);
           } else if (voiceChanger === "echo") {
@@ -527,7 +527,7 @@ const VoiceChatRoom = () => {
         ws.current.send(JSON.stringify(send_message));
       };
 
-      recorder.current.start();
+      recorder.current.start(500);
       setRecording(true);
     } else {
       recorder.current.stop();
@@ -553,6 +553,7 @@ const VoiceChatRoom = () => {
         <div className="bg-gray-800 min-h-screen text-white p-4">
           <button
             className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded"
+            disabled={recording}
             onClick={handleLeaveRoom}
           >
             Leave
