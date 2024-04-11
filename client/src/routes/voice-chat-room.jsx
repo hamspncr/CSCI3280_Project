@@ -21,6 +21,7 @@ const VoiceChatRoom = () => {
   //const myStream = useRef(null);
   const peerConnectionObjects = useRef({});
   const activeStreams = useRef({});
+  const activeAudio = useRef({});
   const userMediaRef = useRef(null);
   const mediaStreamRef = useRef(null);
   const destNodeRef = useRef(null);
@@ -121,6 +122,11 @@ const VoiceChatRoom = () => {
             // We want to create RTCPeerConnection objects for every user that isn't us,
             // so that we can initiate a WebRTC P2P connection
             if (user.userId !== userId) {
+              // An ice server is a server that provides us ice candidates, ice candidates
+              // are paths through networks for us to reach the other client, enabling
+              // P2P connections to be established. The protocol is STUN, and Google provides
+              // free stun servers for us to find ice candidates. We use two here to ensure reliability
+              // of getting ice candidates, sacrificing a little bit of speed
               peerConnectionObjects.current[user.userId] =
                 new RTCPeerConnection({
                   iceServers: [
@@ -208,10 +214,14 @@ const VoiceChatRoom = () => {
                   );
                 });
 
-                const incomingAudio = new Audio();
-                incomingAudio.volume = 0.05; // haha
-                incomingAudio.srcObject = remoteStream;
-                incomingAudio.play();
+                activeAudio.current[user.userId] = new Audio();
+                activeAudio.current[user.userId].srcObject = remoteStream;
+                activeAudio.current[user.userId].play();
+
+                // const incomingAudio = new Audio();
+                // incomingAudio.volume = 0.05; // haha
+                // incomingAudio.srcObject = remoteStream;
+                // incomingAudio.play();
               };
 
               // When the connection closes (they leave or close the tab), we'll remove their connection
@@ -307,10 +317,14 @@ const VoiceChatRoom = () => {
             );
           });
 
-          const incomingAudio = new Audio();
-          incomingAudio.volume = 0.05; // haha
-          incomingAudio.srcObject = remoteStream;
-          incomingAudio.play();
+          activeAudio.current[senderId] = new Audio();
+          activeAudio.current[senderId].srcObject = remoteStream;
+          activeAudio.current[senderId].play();
+
+          // const incomingAudio = new Audio();
+          // incomingAudio.volume = 0.05; // haha
+          // incomingAudio.srcObject = remoteStream;
+          // incomingAudio.play();
         };
 
         // We need an RTCSessionDescription to designate the offerer's information as the
@@ -372,6 +386,7 @@ const VoiceChatRoom = () => {
         conn.close()
       );
       activeStreams.current = {};
+      activeAudio.current = {}
 
       /*
       if (myStream.current) {
@@ -587,6 +602,11 @@ const VoiceChatRoom = () => {
     }
   };
 
+  // handleVolumeChange(userId) returns a function that assigns the input value in the range to that particular user
+  const handleVolumeChange = (userId) => (e) => {
+    activeAudio.current[userId].volume = e.target.value;
+  };
+
   return (
     <>
       {!username ? (
@@ -631,13 +651,28 @@ const VoiceChatRoom = () => {
             <thead>
               <tr className="bg-gray-700">
                 <th className="px-4 py-2">Users</th>
+                <th className="px-4 py-2">Volume</th>
               </tr>
             </thead>
             <tbody>
               {roomInfo.users &&
-                roomInfo.users.map((user, i) => (
-                  <tr key={i} className="bg-gray-600">
+                roomInfo.users.map((user) => (
+                  <tr key={user.userId} className="bg-gray-600">
                     <td className="border px-4 py-2">{user.username}</td>
+                    <td className="border px-4 py-2">
+                      {userId === user.userId ? (
+                        <div></div>
+                      ) : (
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          onChange={handleVolumeChange(user.userId)}
+                          className="h-4 bg-gray-800 rounded-lg"
+                        />
+                      )}
+                    </td>
                   </tr>
                 ))}
             </tbody>
