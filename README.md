@@ -25,6 +25,7 @@ Command reference: [https://www.youtube.com/watch?v=s2YxcPR_yhw](https://www.you
 And fill out the requirements. Enter "HK" for the first, and enter anything to the rest (can't be empty). Their contents do not matter, they are just so that we can run HTTPS.
 
 Your directory should now look something like this:
+
 │   .gitignore
 
 │   private.key
