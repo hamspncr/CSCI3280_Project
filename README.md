@@ -16,7 +16,7 @@ Since we're using the crypto module, we need https. Therefore:
 
 While in the root directory:
 
-On windows: right click the window of the root directory in file explorer and press "Git Bash Here" then run the following command. On linux, just open the terminal and cd into root and run the same command
+On windows: right click the window of the root directory in file explorer and press "Git Bash Here" then run the following command. On linux, just open the terminal and cd into root of the directory and run the same command
 ```console
 openssl req -x509 -sha256 -nodes -days 365 -newkey rsa:2048 -keyout private.key -out voice-record-chat.crt
 ```
