@@ -2,6 +2,8 @@ import { useContext, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { UsernameContext } from "../App";
 
+// handler functions are self-explanatory
+
 const VoiceChat = () => {
   const { username, setUsername } = useContext(UsernameContext);
   const { voiceChanger, setVoiceChanger } = useContext(UsernameContext);
@@ -11,8 +13,9 @@ const VoiceChat = () => {
   const ws = useRef(null);
 
   useEffect(() => {
-    const hostName = import.meta.env.VITE_HOST || "localhost"
-    const wssUrl = "wss://" + hostName + ":8000"
+    // We need all the room information, so we also need to connect to the websocket even from here
+    const hostName = import.meta.env.VITE_HOST || "localhost";
+    const wssUrl = "wss://" + hostName + ":8000";
     ws.current = new WebSocket(wssUrl);
     ws.current.onopen = () => {
       setLoading(false);
@@ -27,8 +30,11 @@ const VoiceChat = () => {
     ws.current.onmessage = ({ data }) => {
       const { event, payload } = JSON.parse(data);
       if (event === "get-rooms") {
+        // Server sends all room info upon our request
         setRooms(payload);
       } else if (event === "create-room") {
+        // Server sends this when somebody creates a new room
+        // so we call "get-rooms" again (in handleRefresh)
         handleRefresh();
       }
     };
@@ -61,15 +67,15 @@ const VoiceChat = () => {
 
   const handleVoiceChanger = () => {
     if (voiceChanger === "normal") {
-      setVoiceChanger("deep")
+      setVoiceChanger("deep");
     } else if (voiceChanger === "deep") {
-      setVoiceChanger("chipmunk")
+      setVoiceChanger("chipmunk");
     } else if (voiceChanger === "chipmunk") {
-      setVoiceChanger("echo")
+      setVoiceChanger("echo");
     } else if (voiceChanger === "echo") {
-      setVoiceChanger("normal")
+      setVoiceChanger("normal");
     }
-  }
+  };
 
   return (
     <>
@@ -92,7 +98,7 @@ const VoiceChat = () => {
               className="bg-orange-500 hover:bg-orange-700 text-white font-bold py-1 px-2 rounded"
             >
               Voice: {voiceChanger}
-              </button>
+            </button>
           </div>
           <hr />
           <h1>Create Room:</h1>
@@ -139,6 +145,8 @@ const VoiceChat = () => {
                         .join("")}`}
                     </td>
                     <td className="border px-4 py-2">
+                      {/* We don't let users join a room if they don't provide a username, 
+                       so this link is hidden*/}
                       {username && (
                         <Link disabled to={`/voice-chat/${id}`}>
                           Join

@@ -11,6 +11,8 @@ import {
   trimAudioBuffer,
 } from "../utils/utils";
 
+// handler functions are self-explanatory
+
 const AudioEditor = () => {
   const [playing, setPlaying] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
@@ -31,9 +33,11 @@ const AudioEditor = () => {
   const testStream = useRef(null);
 
   useEffect(() => {
+    // In order for the audio library to persist, we use the IndexedDB API (part of JavaScript)
     const dbreq = indexedDB.open("audioLibrary", 1);
     context.current = new AudioContext();
 
+    // Runs when first time launching the app, so the db doesn't exist
     dbreq.onupgradeneeded = () => {
       const db = dbreq.result;
       db.createObjectStore("audioEntries", { keyPath: "id" });
@@ -48,6 +52,10 @@ const AudioEditor = () => {
       const requestStore = store.getAll();
 
       requestStore.onsuccess = () => {
+        // Updating the audioLibrary on app load, audioBuffer couldn't be saved to
+        // the IndexedDB directly, so the DB stores an ArrayBuffer of the frameData,
+        // and other metadata (sampleRate, etc.) to reconstruct the audioBuffer
+        // once loaded
         requestStore.result.forEach((entry) => {
           const audioBuffer = framesToAudioBuffer(
             entry.sampleRate,
@@ -70,12 +78,13 @@ const AudioEditor = () => {
         db.close();
       };
 
-      trans.oncomplete = () => {
+      trans.onerror = () => {
         db.close();
       };
     };
   }, []);
 
+  // More of a helper function to update both the audioLibrary state and the IndexedDB
   const updateAudioLibrary = (id, name, audioBuffer) => {
     const dbreq = indexedDB.open("audioLibrary", 1);
 
@@ -85,6 +94,9 @@ const AudioEditor = () => {
       const trans = db.transaction(["audioEntries"], "readwrite");
       const store = trans.objectStore("audioEntries");
 
+      // The IndexedDB couldn't store the audioBuffer directly, so it's converted
+      // into an ArrayBuffer of uncompressed PCM sample data, and it's other
+      // information is stored so that the audioBuffer can be recreated once loaded
       const frames = audioToArrayBuffer(audioBuffer);
 
       const entry = {
@@ -115,6 +127,7 @@ const AudioEditor = () => {
     };
   };
 
+  // Helper function for removing audio from audioLibrary state and IndexedDB
   const deleteFromAudioLibrary = (id) => {
     const dbreq = indexedDB.open("audioLibrary", 1);
 
@@ -166,6 +179,7 @@ const AudioEditor = () => {
       }
     }
   };
+
   const handleSelectedAudio = (e) => {
     const selected = e.target.value;
     const selectedAudio = audioLibrary[selected];
@@ -217,6 +231,7 @@ const AudioEditor = () => {
 
   const handleRecording = async () => {
     if (!recording) {
+      // Enforce mono so that it can play nicely with the speech2text we use
       const formatting = {
         audio: {
           channelCount: 1,
@@ -226,6 +241,8 @@ const AudioEditor = () => {
       const stream = await navigator.mediaDevices.getUserMedia(formatting);
       recorder.current = new MediaRecorder(stream);
 
+      // We'll only getting a single chunk, since the param to recorder.current.start is undefined
+      // meaning the data is only available when recorder.current.stop, so only one time
       let chunks = {};
 
       recorder.current.ondataavailable = (e) => {
@@ -297,6 +314,7 @@ const AudioEditor = () => {
       alert("Start > End");
     }
     if (!overwriting) {
+      // A combination of recording and overwriting in utils
       const formatting = {
         audio: {
           channelCount: loadedAudioData.numberOfChannels,
@@ -421,6 +439,7 @@ const AudioEditor = () => {
   };
 
   const handleTranscript = async () => {
+    // Uses Wit.AI, check utils/utils.js for more details
     if (loadedAudioData && loadedAudioData.numberOfChannels === 1) {
       setTranscribing(true);
       const waveBlob = await createWaveBlob(
@@ -435,6 +454,7 @@ const AudioEditor = () => {
   };
 
   const handleExport = () => {
+    // In case you want to save the wave file again
     if (loadedAudioData) {
       saveWave(
         audioToArrayBuffer(loadedAudioData),
@@ -445,6 +465,7 @@ const AudioEditor = () => {
   };
 
   const handleDelete = () => {
+    // In case you want to clear up your library
     if (loadedAudioData) {
       const toDelete = Object.keys(audioLibrary).find(
         (id) => audioLibrary[id].audioData === loadedAudioData

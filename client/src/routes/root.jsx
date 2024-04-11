@@ -1,3 +1,4 @@
+// This is just our "/" page, phase I leads to the audio editor, phase II leads to the voice chat
 const Root = () => {
   return (
     <>
