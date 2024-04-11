@@ -69,7 +69,7 @@ export const saveWave = (framedata, channels, rate, name, intPCM = false) => {
   link.click();
 };
 
-// This should've been saveWave but I'm a lazy cunt
+// Does close to what save wave does, but does not automatically save to computer
 export const createWaveBlob = async (framedata, channels, rate, intPCM = false) => {
   const sample_width = 4; // decodeAudioData always gives floating point 32-bit samples
   const data_chunk_size = framedata.byteLength;
@@ -105,7 +105,7 @@ export const createWaveBlob = async (framedata, channels, rate, intPCM = false) 
   return blob;
 };
 
-// cuz can't return from inside load event for some fucking reason
+// Cannot return from inside callback, so returns a promise and resolves from within onload instead. Used in voice-chat-room for audio recording
 export const readFileAsDataURL = (blob) => {
   return new Promise((resolve) => {
     const reader = new FileReader();
