@@ -42,7 +42,7 @@ Your directory should now look something like this:
 
 ## Setting up environment variables
 
-In each directory, clone .env and name the clone .env.local. In the client directory, paste your private ip (v4) into `VITE_HOST`. In the server directory, paste it into `HOST`. MAKE SURE you do not put quotes. It should look like:
+In both client and server directories, clone the .env of each directory and name this clone .env.local. In the client directory, paste your private ip (v4) into `VITE_HOST`. In the server directory, paste it into `HOST`. MAKE SURE you do not put quotes. It should look like:
 
 ```
 HOST=your-private-ip
