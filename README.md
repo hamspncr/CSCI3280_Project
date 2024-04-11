@@ -1,10 +1,12 @@
 # CSCI3280_Project
 
+P2P voice chat with WebRTC (Mesh network architecture)
+
 Directories are self-explanatory
 
 # Setting up
 
-You'll need [Node.js](https://nodejs.org/en/download). Tested on Node.js v20.11.1. MAY NOT WORK ON OLDER VERSIONS.
+You'll need [Node.js](https://nodejs.org/en/download). Tested on Node.js v20.11.1. MAY NOT WORK ON OLDER VERSIONS. Git as well.
 
 Tested browsers: Firefox, Google Chrome, Edge. Works on all
 
@@ -14,16 +16,17 @@ Since we're using the crypto module, we need https. Therefore:
 
 While in the root directory:
 
+On windows: right click the window of the root directory in file explorer and press "Git Bash Here" then run the following command. On linux, just open the terminal and cd into root and run the same command
 ```console
 openssl req -x509 -sha256 -nodes -days 365 -newkey rsa:2048 -keyout private.key -out voice-record-chat.crt
 ```
-Command reference: [https://www.youtube.com/watch?v=s2YxcPR_yhw](https://www.youtube.com/watch?v=s2YxcPR_yhw)
+Command reference: [https://www.youtube.com/watch?v=s2YxcPR_yhw](https://www.youtube.com/watch?v=s2YxcPR_yhw) credits to benixal.
 
-And fill out the requirements. Their contents do not matter, they are just so that we can run HTTPS.
+And fill out the requirements. Enter "HK" for the first, and enter anything to the rest (can't be empty). Their contents do not matter, they are just so that we can run HTTPS.
 
 ## Setting up environment variables
 
-In each directory, clone .env and name the clone .env.local. In the client directory, paste your private ip into `VITE_HOST`. In the server directory, paste it into `HOST`. MAKE SURE you do not put quotes. It should look like:
+In each directory, clone .env and name the clone .env.local. In the client directory, paste your private ip (v4) into `VITE_HOST`. In the server directory, paste it into `HOST`. MAKE SURE you do not put quotes. It should look like:
 
 ```
 HOST=your-private-ip
@@ -41,6 +44,8 @@ While in the client directory:
 npm install
 npm run build
 ```
+
+NOTE: If you update the environment variables, you will have to run `npm run build` again.
 
 While in the server directory:
 
