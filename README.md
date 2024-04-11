@@ -20,7 +20,7 @@ On windows: right click the window of the root directory in file explorer and pr
 ```console
 openssl req -x509 -sha256 -nodes -days 365 -newkey rsa:2048 -keyout private.key -out voice-record-chat.crt
 ```
-Command reference: [https://www.youtube.com/watch?v=s2YxcPR_yhw](https://www.youtube.com/watch?v=s2YxcPR_yhw) credits to benixal.
+Command reference: [https://www.youtube.com/watch?v=s2YxcPR_yhw](https://www.youtube.com/watch?v=s2YxcPR_yhw) credits to benixal. His video also details how to get a valid certificate signed by a certificate authority, if you want to go the extra mile
 
 And fill out the requirements. Enter "HK" for the first, and enter anything to the rest (can't be empty). Their contents do not matter, they are just so that we can run HTTPS.
 
