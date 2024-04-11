@@ -26,11 +26,17 @@ And fill out the requirements. Enter "HK" for the first, and enter anything to t
 
 Your directory should now look something like this:
 │   .gitignore
+
 │   private.key
+
 │   README.md
+
 │   voice-record-chat.crt
+
 │
+
 ├───client/
+
 └───server/
 
 ## Setting up environment variables
